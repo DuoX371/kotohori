@@ -19,7 +19,9 @@ class SubtitleTimeline {
   /// Every cue showing at [pos] (ASS can overlap), in start order.
   List<Cue> activeAt(Duration pos) => [
     for (final c in cues)
-      if (startOf(c) <= pos + tolerance && pos < endOf(c)) c,
+      // Ends shift by the same tolerance as starts, so a line ending exactly
+      // when the next starts hides as the next appears (no stacked flash).
+      if (startOf(c) <= pos + tolerance && pos + tolerance < endOf(c)) c,
   ];
 
   /// The last cue that has started by [pos]: the one "replay" and the cue

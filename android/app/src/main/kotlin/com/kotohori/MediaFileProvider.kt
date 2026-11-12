@@ -1,4 +1,4 @@
-package moe.chooh.kotohori
+package com.kotohori
 
 import android.net.Uri
 import androidx.core.content.FileProvider

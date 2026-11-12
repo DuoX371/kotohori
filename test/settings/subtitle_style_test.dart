@@ -25,7 +25,7 @@ void main() {
     });
     expect(s.size, SubtitleStyle.maxSize);
     expect(s.backdrop, SubtitleBackdrop.outline);
-    expect(s.bold, isFalse);
+    expect(s.bold, const SubtitleStyle().bold);
     expect(s.boxOpacity, 0);
   });
 }

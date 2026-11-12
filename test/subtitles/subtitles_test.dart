@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:charset/charset.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kotohori/features/subtitles/ass_parser.dart';
+import 'package:kotohori/features/subtitles/cue.dart';
 import 'package:kotohori/features/subtitles/srt_parser.dart';
 import 'package:kotohori/features/subtitles/subtitle_loader.dart';
 import 'package:kotohori/features/subtitles/timeline.dart';
@@ -152,6 +153,18 @@ void main() {
       expect(t.currentAt(ms(7958))!.index, 2);
       expect(t.nextAfter(ms(7958)), isNull); // "next" must not re-jump to cue 2
       expect(t.activeAt(ms(7800)), isEmpty);
+    });
+
+    test('back-to-back lines never show together', () {
+      // Most SRT lines end exactly when the next starts.
+      final b = SubtitleTimeline([
+        Cue(0, ms(1000), ms(2000), 'a'),
+        Cue(1, ms(2000), ms(3000), 'b'),
+      ]);
+      for (var p = 1000; p < 3000; p += 10) {
+        expect(b.activeAt(ms(p)).length, lessThanOrEqualTo(1), reason: '$p ms');
+      }
+      expect(b.activeAt(ms(1950)).single.index, 1); // seek to line 1 lands here
     });
 
     test('sync: selected line starts now, whichever line it is', () {

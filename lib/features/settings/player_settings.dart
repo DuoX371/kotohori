@@ -33,3 +33,19 @@ class PauseOnLookup extends Notifier<bool> {
 final pauseOnLookupProvider = NotifierProvider<PauseOnLookup, bool>(
   PauseOnLookup.new,
 );
+
+/// Video fills the screen (cropping the edges) instead of fitting with black
+/// bars. Toggled by pinching in the player; remembered.
+class VideoFill extends Notifier<bool> {
+  static const _key = 'player.fill';
+
+  @override
+  bool build() => ref.watch(prefsProvider).getBool(_key) ?? false;
+
+  Future<void> set(bool value) async {
+    await ref.read(prefsProvider).setBool(_key, value);
+    state = value;
+  }
+}
+
+final videoFillProvider = NotifierProvider<VideoFill, bool>(VideoFill.new);

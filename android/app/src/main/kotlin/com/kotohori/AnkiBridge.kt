@@ -1,4 +1,4 @@
-package moe.chooh.kotohori
+package com.kotohori
 
 import android.app.Activity
 import android.content.ContentValues

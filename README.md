@@ -65,12 +65,13 @@ In the player, with a hardware keyboard:
 
 No account, no analytics, no tracking. Your videos, subtitles and cards stay on
 your device. Kotohori only goes online to download dictionaries you choose (from
-their original sites) and to fetch word audio from JapanesePod101 when you make a
-card.
+their original sites), to fetch word audio from JapanesePod101 when you make a
+card, and to check GitHub for a newer version when it starts (you can turn this
+off in Settings).
 
 ## 🙏 Credits
 
-- **Yomitan:** dictionary format and Japanese deinflection
+- **[Yomitan](https://yomitan.wiki/):** dictionary format and Japanese deinflection
   rules, ported from its [source](https://github.com/yomidevs/yomitan) (GPL-3.0)
 - **Word audio:** JapanesePod101, the same source Yomitan uses
 - **Video playback:** [media_kit](https://github.com/media-kit/media-kit) and [mpv](https://mpv.io)

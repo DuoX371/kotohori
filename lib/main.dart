@@ -60,10 +60,11 @@ class KotohoriApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final snackWidth = snackBarWidth(MediaQuery.sizeOf(context));
     return MaterialApp(
       title: 'Kotohori',
-      theme: buildTheme(Brightness.light),
-      darkTheme: buildTheme(Brightness.dark),
+      theme: buildTheme(Brightness.light, snackWidth: snackWidth),
+      darkTheme: buildTheme(Brightness.dark, snackWidth: snackWidth),
       themeMode: ref.watch(themeModeProvider),
       home: const AppShell(),
     );

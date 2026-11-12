@@ -26,7 +26,12 @@ abstract final class KColors {
 
 const headingFont = 'ZenKakuGothicNew';
 
-ThemeData buildTheme(Brightness brightness) {
+/// Pop-up messages are a compact centred card on tablets; on phones they span
+/// the width (minus margins), as a fixed width wouldn't fit.
+double? snackBarWidth(Size screen) => screen.width >= 600 ? 440 : null;
+
+/// [snackWidth]: see [snackBarWidth].
+ThemeData buildTheme(Brightness brightness, {double? snackWidth}) {
   final dark = brightness == Brightness.dark;
   final gold = dark ? KColors.gold : KColors.lightGold;
   final screen = dark ? KColors.screen : KColors.lightScreen;
@@ -100,7 +105,21 @@ ThemeData buildTheme(Brightness brightness) {
       space: 1,
       thickness: 1,
     ),
-    snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+    // Floating gold card (the app's accent), dark text, like the Play button.
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      width: snackWidth,
+      backgroundColor: scheme.primary,
+      contentTextStyle: TextStyle(
+        color: scheme.onPrimary,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
+      actionTextColor: scheme.onPrimary,
+      closeIconColor: scheme.onPrimary,
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
     drawerTheme: DrawerThemeData(backgroundColor: surface),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: surface,

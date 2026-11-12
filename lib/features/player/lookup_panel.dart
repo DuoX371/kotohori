@@ -7,7 +7,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../anki/anki_providers.dart';
 import '../anki/anki_settings.dart';
 import '../dictionary/lookup/lookup.dart' show LookupResult;
-import '../dictionary/ui/providers.dart' show htmlBuilderProvider;
+import '../dictionary/ui/providers.dart'
+    show emptyLookupMessageProvider, htmlBuilderProvider;
 import 'player_controller.dart';
 
 /// Dictionary popup over the video. Renders the same results page as
@@ -117,12 +118,17 @@ for (const [i, decks] of Object.entries(${jsonEncode(marks)})) {
     _web.loadHtmlString(
       ref
           .read(htmlBuilderProvider)
-          .page(r, emptyMessage: 'No results', addButtons: true),
+          .page(
+            r,
+            emptyMessage: ref.read(emptyLookupMessageProvider),
+            addButtons: true,
+          ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(emptyLookupMessageProvider); // keeps the dictionary list loaded
     final scheme = Theme.of(context).colorScheme;
     return Material(
       color: scheme.surface,

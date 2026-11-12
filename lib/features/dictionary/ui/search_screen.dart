@@ -5,6 +5,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../../settings/settings_screen.dart';
 import '../lookup/lookup.dart';
 import 'providers.dart';
+import '../../notices/notices_button.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -40,16 +41,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _query = q;
       _matched = result.matchedLength;
     });
-    await _web.loadHtmlString(ref.read(htmlBuilderProvider).page(result));
+    await _web.loadHtmlString(
+      ref
+          .read(htmlBuilderProvider)
+          .page(result, emptyMessage: ref.read(emptyLookupMessageProvider)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(emptyLookupMessageProvider); // keeps the dictionary list loaded
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dictionary'),
         actions: [
+          const NoticesButton(),
           IconButton(
             tooltip: 'Settings',
             icon: const Icon(Icons.settings_outlined),

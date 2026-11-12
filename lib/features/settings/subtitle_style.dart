@@ -18,11 +18,11 @@ enum SubtitleBackdrop {
 /// How the player draws subtitles. Saved as one JSON value.
 class SubtitleStyle {
   const SubtitleStyle({
-    this.size = 26,
+    this.size = 28,
     this.color = SubtitleStyle.white,
-    this.bold = false,
+    this.bold = true,
     this.backdrop = SubtitleBackdrop.outline,
-    this.boxOpacity = 0.45,
+    this.boxOpacity = 0.5,
   });
 
   static const white = Color(0xFFFFFFFF), yellow = Color(0xFFFFE45C);

@@ -5,6 +5,8 @@ import '../../app/theme.dart';
 import '../anki/anki_settings_screen.dart';
 import '../dictionary/ui/installed_screen.dart';
 import '../dictionary/ui/recommended_screen.dart';
+import '../update/update_check.dart';
+import '../update/update_snack.dart';
 import 'appearance_settings.dart';
 import 'subtitle_style_screen.dart';
 
@@ -116,6 +118,21 @@ class SettingsScreen extends ConsumerWidget {
             title: 'About',
             children: [
               ListTile(
+                leading: const Icon(Icons.system_update_outlined),
+                title: const Text('Check for updates'),
+                subtitle: Text(
+                  'Version ${ref.watch(appVersionProvider).value ?? '…'}',
+                ),
+                onTap: () => _checkForUpdates(context, ref),
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.update),
+                title: const Text('Check when Kotohori starts'),
+                subtitle: const Text('Asks GitHub for the latest release'),
+                value: ref.watch(checkOnLaunchProvider),
+                onChanged: ref.read(checkOnLaunchProvider.notifier).set,
+              ),
+              ListTile(
                 leading: const Icon(Icons.info_outline),
                 title: const Text('Licenses'),
                 trailing: const Icon(Icons.chevron_right),
@@ -133,5 +150,33 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _checkForUpdates(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Checking for updates…')),
+    );
+    try {
+      final r = await ref.read(updateCheckProvider)();
+      messenger.hideCurrentSnackBar();
+      if (!context.mounted) return;
+      if (r != null) {
+        ref.read(availableUpdateProvider.notifier).set(r);
+        showUpdateSnack(context, r);
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(content: Text("You're on the latest version")),
+        );
+      }
+    } on Object catch (_) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text("Couldn't check for updates. Are you online?"),
+          ),
+        );
+    }
   }
 }

@@ -17,6 +17,7 @@ import '../subtitles/embedded_subtitles.dart';
 import '../subtitles/subtitle_loader.dart';
 import 'display_name.dart';
 import 'last_session.dart';
+import '../notices/notices_button.dart';
 
 /// Start screen: pick a video and a subtitle file, then play — or restore the last one.
 class HomeScreen extends ConsumerStatefulWidget {
@@ -340,6 +341,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         actions: [
+          const NoticesButton(),
           IconButton(
             tooltip: 'Settings',
             icon: const Icon(Icons.settings_outlined),

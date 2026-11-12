@@ -159,3 +159,17 @@ class Jobs extends Notifier<Map<String, Job>> {
 }
 
 final jobsProvider = NotifierProvider<Jobs, Map<String, Job>>(Jobs.new);
+
+/// What an empty lookup says: why there's nothing (no dictionaries, all off)
+/// or a plain "No results". Watch it so the dictionary list stays loaded.
+final emptyLookupMessageProvider = Provider<String>((ref) {
+  final dicts = ref.watch(installedProvider).value;
+  if (dicts == null) return 'No results';
+  if (dicts.isEmpty) {
+    return 'No dictionaries installed yet.';
+  }
+  if (!dicts.any((d) => d.enabled)) {
+    return 'No dictionaries are currently enabled.';
+  }
+  return 'No results';
+});

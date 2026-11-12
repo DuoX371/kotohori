@@ -1,19 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/dictionary/ui/search_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/notices/notices.dart';
+import '../features/update/update_check.dart';
+import '../features/update/update_snack.dart';
 
 /// Top-level sections: Player (videos), Reader (light novels, not built yet)
 /// and Dictionary (look up any word). Bottom bar on phones, a rail on wide screens.
-class AppShell extends StatefulWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends ConsumerState<AppShell> {
   var _index = 0;
+
+  // AnkiDroid may have been installed or its permission changed meanwhile.
+  late final _lifecycle = AppLifecycleListener(
+    onResume: () => ref.invalidate(ankiStatusProvider),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle;
+    if (ref.read(checkOnLaunchProvider)) _checkForUpdate();
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  /// Quiet: only speaks up when there is a newer release (offline etc. is ignored).
+  Future<void> _checkForUpdate() async {
+    try {
+      final r = await ref.read(updateCheckProvider)();
+      if (r == null || !mounted) return;
+      ref.read(availableUpdateProvider.notifier).set(r); // stays under the bell
+      showUpdateSnack(context, r);
+    } on Object catch (_) {}
+  }
 
   static const _sections = [
     (

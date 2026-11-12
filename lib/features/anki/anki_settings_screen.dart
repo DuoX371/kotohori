@@ -8,6 +8,7 @@ import 'anki_providers.dart';
 import 'anki_settings.dart';
 import 'card_builder.dart';
 import 'note_designs_screen.dart';
+import '../notices/notices.dart' show ankiStatusProvider;
 
 /// Settings → Anki: deck, note type, field mapping, media options.
 class AnkiSettingsScreen extends ConsumerStatefulWidget {
@@ -52,6 +53,7 @@ class _AnkiSettingsScreenState extends ConsumerState<AnkiSettingsScreen> {
 
   Future<void> _grant() async {
     await ref.read(ankiBridgeProvider).requestPermission();
+    ref.invalidate(ankiStatusProvider); // the bell's notice
     await _load();
   }
 
@@ -69,6 +71,9 @@ class _AnkiSettingsScreenState extends ConsumerState<AnkiSettingsScreen> {
     final notifier = ref.read(ankiSettingsProvider.notifier);
     final model = _models.where((m) => m.id == s.modelId).firstOrNull;
     final status = _status;
+    // Decks and note types live in AnkiDroid: readable only once it's connected.
+    final connected = status != null && status.installed && status.permission;
+    const needsAccess = Text('Needs access to AnkiDroid (above)');
 
     return Scaffold(
       appBar: AppBar(title: const Text('Anki')),
@@ -101,7 +106,9 @@ class _AnkiSettingsScreenState extends ConsumerState<AnkiSettingsScreen> {
                   title: 'Cards go to',
                   children: [
                     ListTile(
+                      enabled: connected,
                       title: const Text('Deck'),
+                      subtitle: connected ? null : needsAccess,
                       trailing: DropdownButton<int>(
                         value: _decks.any((d) => d.id == s.deckId)
                             ? s.deckId
@@ -112,12 +119,17 @@ class _AnkiSettingsScreenState extends ConsumerState<AnkiSettingsScreen> {
                           for (final d in _decks)
                             DropdownMenuItem(value: d.id, child: Text(d.name)),
                         ],
-                        onChanged: (id) =>
-                            notifier.update((x) => x.copyWith(deckId: id)),
+                        onChanged: !connected
+                            ? null
+                            : (id) => notifier.update(
+                                (x) => x.copyWith(deckId: id),
+                              ),
                       ),
                     ),
                     ListTile(
+                      enabled: connected,
                       title: const Text('Note type'),
+                      subtitle: connected ? null : needsAccess,
                       trailing: DropdownButton<int>(
                         value: model?.id,
                         hint: const Text('Choose'),
@@ -126,18 +138,24 @@ class _AnkiSettingsScreenState extends ConsumerState<AnkiSettingsScreen> {
                           for (final m in _models)
                             DropdownMenuItem(value: m.id, child: Text(m.name)),
                         ],
-                        onChanged: (id) =>
-                            _pickModel(_models.firstWhere((m) => m.id == id)),
+                        onChanged: !connected
+                            ? null
+                            : (id) => _pickModel(
+                                _models.firstWhere((m) => m.id == id),
+                              ),
                       ),
                     ),
                     ListTile(
+                      enabled: connected,
                       leading: const Icon(Icons.style_outlined),
                       title: const Text('Card designs'),
-                      subtitle: Text(
-                        model == null
-                            ? "Don't have a note type? Pick a ready-made one: Classic, Modern, Cinema or Focus"
-                            : 'Ready-made note types: Classic, Modern, Cinema or Focus',
-                      ),
+                      subtitle: !connected
+                          ? needsAccess
+                          : Text(
+                              model == null
+                                  ? "Don't have a note type? Pick a ready-made one: Classic, Modern, Cinema or Focus"
+                                  : 'Ready-made note types: Classic, Modern, Cinema or Focus',
+                            ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () async {
                         await Navigator.of(context).push(

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../app/theme.dart';
+import '../../platform/pip.dart';
 import '../anki/anki_providers.dart';
 import '../anki/anki_settings.dart';
 import '../anki/card_editor_screen.dart';
@@ -21,6 +22,11 @@ import 'lookup_panel.dart';
 import 'player_controller.dart';
 import 'player_options_sheet.dart';
 import 'subtitle_overlay.dart';
+
+/// After a pinch from zoom [start] to [now] (0 fit … 1 fill): fill or fit?
+/// A clear pinch goes the way the fingers moved; a small one snaps back.
+bool pinchSnapsToFill(double start, double now) =>
+    (now - start).abs() > 0.1 ? now > start : start > 0.5;
 
 class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({
@@ -51,7 +57,8 @@ class PlayerScreen extends ConsumerStatefulWidget {
   ConsumerState<PlayerScreen> createState() => _PlayerScreenState();
 }
 
-class _PlayerScreenState extends ConsumerState<PlayerScreen> {
+class _PlayerScreenState extends ConsumerState<PlayerScreen>
+    with SingleTickerProviderStateMixin {
   static final _darkTheme = buildTheme(Brightness.dark);
   late final c = PlayerController(
     widget.cues,
@@ -75,6 +82,81 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Timer? _hideTimer;
   String? _error;
+
+  /// In the mini player (Android picture-in-picture): video + subtitles only.
+  var _pip = false;
+  final _pipSubs = <StreamSubscription<Object?>>[];
+
+  /// Home makes a mini player only while the video plays.
+  void _updatePip() {
+    final s = c.player.state;
+    // Stays allowed while in the mini window, so pausing there keeps it open.
+    Pip.configure(
+      enabled: s.playing || _pip,
+      playing: s.playing,
+      width: s.width,
+      height: s.height,
+    );
+  }
+
+  void _onPip(bool inPip, bool closed) {
+    if (!mounted) return;
+    if (inPip) {
+      if (c.lookup.isOpen) c.closeLookup();
+      _hideTimer?.cancel();
+    }
+    setState(() {
+      _pip = inPip;
+      if (inPip) _controls = false;
+    });
+    _updatePip();
+    if (closed) {
+      c.player.pause();
+      _save();
+    }
+  }
+
+  /// Zoom between fit (0: whole picture, black bars) and fill (1: no bars,
+  /// edges cropped). Follows the fingers while pinching, then glides to one.
+  late final _zoom = AnimationController(
+    vsync: this,
+    value: ref.read(videoFillProvider) ? 1 : 0,
+    duration: const Duration(milliseconds: 220),
+  );
+  double _zoomAtStart = 0;
+
+  /// How much the fitted picture must grow to fill the screen (1: same shape).
+  double _fillScale(Size screen) {
+    final s = c.player.state;
+    final w = s.width, h = s.height;
+    if (w == null || h == null || w == 0 || h == 0 || screen.isEmpty) return 1;
+    final video = w / h, box = screen.width / screen.height;
+    return video > box ? video / box : box / video;
+  }
+
+  void _onPinchUpdate(ScaleUpdateDetails d) {
+    if (d.pointerCount < 2) return;
+    final full = _fillScale(MediaQuery.sizeOf(context));
+    if (full <= 1.001) return;
+    final startScale = 1 + _zoomAtStart * (full - 1);
+    _zoom.value = ((startScale * d.scale - 1) / (full - 1)).clamp(0.0, 1.0);
+  }
+
+  void _onPinchEnd() {
+    final fill = pinchSnapsToFill(_zoomAtStart, _zoom.value);
+    _zoom.animateTo(fill ? 1 : 0, curve: Curves.easeOutCubic);
+    if (fill == ref.read(videoFillProvider)) return;
+    ref.read(videoFillProvider.notifier).set(fill);
+    ScaffoldMessenger.of(_scaffold.currentContext!)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(fill ? 'Fill screen' : 'Fit to screen'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+  }
+
   late final _lifecycle = AppLifecycleListener(onHide: _save);
 
   void _save() {
@@ -104,6 +186,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _applyOrientation();
+    Pip.listen(
+      _onPip,
+      onAction: (a) => switch (a) {
+        'previous' => c.previousCue(),
+        'toggle' => c.player.playOrPause(),
+        'next' => c.nextCue(),
+        _ => null,
+      },
+    );
+    _pipSubs.addAll([
+      c.player.stream.playing.listen((_) => _updatePip()),
+      // The video's size decides how far "fill" zooms.
+      c.player.stream.width.listen((_) {
+        _updatePip();
+        if (mounted) setState(() {});
+      }),
+      c.player.stream.height.listen((_) => _updatePip()),
+    ]);
     c.player.stream.error.listen(
       (e) => mounted ? setState(() => _error = e) : null,
     );
@@ -127,10 +227,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   void dispose() {
     _save();
+    for (final s in _pipSubs) {
+      s.cancel();
+    }
+    Pip.listen(null);
+    Pip.configure(enabled: false);
     _lifecycle.dispose();
     _hideTimer?.cancel();
     _thumbTimer?.cancel();
     _keys.dispose();
+    _zoom.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(
       [],
@@ -305,7 +411,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       onKeyEvent: _onKey,
       // The player is always dark, whatever the app theme.
       child: Theme(
-        data: _darkTheme,
+        data: _darkTheme.copyWith(
+          snackBarTheme: _darkTheme.snackBarTheme.copyWith(
+            width: snackBarWidth(MediaQuery.sizeOf(context)),
+          ),
+        ),
         child: Scaffold(
           key: _scaffold,
           backgroundColor: Colors.black,
@@ -333,74 +443,110 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Video(
-          controller: c.video,
-          controls: NoVideoControls,
-          subtitleViewConfiguration: const SubtitleViewConfiguration(
-            visible: false,
-          ),
-        ),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _toggleControls,
-        ),
-        if (_error != null)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                'Playback error: $_error',
-                style: const TextStyle(color: Colors.white),
-                textAlign: TextAlign.center,
+        // First, and kept in the mini player too, so the video never re-attaches.
+        ClipRect(
+          child: AnimatedBuilder(
+            animation: _zoom,
+            builder: (context, video) => Transform.scale(
+              scale: _pip ? 1 : 1 + _zoom.value * (_fillScale(size) - 1),
+              child: video,
+            ),
+            child: Video(
+              controller: c.video,
+              controls: NoVideoControls,
+              subtitleViewConfiguration: const SubtitleViewConfiguration(
+                visible: false,
               ),
             ),
           ),
-        AnimatedPadding(
-          duration: const Duration(milliseconds: 200),
-          padding: EdgeInsets.only(
-            bottom: subtitleBottom,
-            left: 16,
-            right: subtitleRight,
-          ),
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: SubtitleOverlay(c),
-          ),
         ),
-        IgnorePointer(
-          ignoring: !_controls,
-          child: AnimatedOpacity(
-            opacity: _controls ? 1 : 0,
+        if (_pip)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              // Subtitles shrink with the small window.
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(
+                    (size.width / 900).clamp(0.3, 1.0),
+                  ),
+                ),
+                child: SubtitleOverlay(c),
+              ),
+            ),
+          ),
+        if (!_pip) ...[
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _toggleControls,
+            onScaleStart: (_) {
+              _zoom.stop();
+              _zoomAtStart = _zoom.value;
+            },
+            onScaleUpdate: _onPinchUpdate,
+            onScaleEnd: (_) => _onPinchEnd(),
+          ),
+          if (_error != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Playback error: $_error',
+                  style: const TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          AnimatedPadding(
             duration: const Duration(milliseconds: 200),
-            child: Column(children: [_topBar(), const Spacer(), _bottomBar()]),
+            padding: EdgeInsets.only(
+              bottom: subtitleBottom,
+              left: 16,
+              right: subtitleRight,
+            ),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: SubtitleOverlay(c),
+            ),
           ),
-        ),
-        if (open)
-          wide
-              ? Positioned(
-                  top: 8,
-                  right: 8,
-                  bottom: 8,
-                  width: panelWidth,
-                  child: SafeArea(
+          IgnorePointer(
+            ignoring: !_controls,
+            child: AnimatedOpacity(
+              opacity: _controls ? 1 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Column(
+                children: [_topBar(), const Spacer(), _bottomBar()],
+              ),
+            ),
+          ),
+          if (open)
+            wide
+                ? Positioned(
+                    top: 8,
+                    right: 8,
+                    bottom: 8,
+                    width: panelWidth,
+                    child: SafeArea(
+                      child: LookupPanel(
+                        c,
+                        onAdd: _addCard,
+                        ankiChanged: _ankiChanged,
+                      ),
+                    ),
+                  )
+                : Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: panelHeight,
                     child: LookupPanel(
                       c,
                       onAdd: _addCard,
                       ankiChanged: _ankiChanged,
                     ),
                   ),
-                )
-              : Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: panelHeight,
-                  child: LookupPanel(
-                    c,
-                    onAdd: _addCard,
-                    ankiChanged: _ankiChanged,
-                  ),
-                ),
+        ],
       ],
     );
   }
