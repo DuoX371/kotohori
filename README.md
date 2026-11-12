@@ -83,7 +83,7 @@ it includes rules ported from Yomitan, which is GPL-3.0.
 
 ## 👋 Why I made this
 
-What's up fellow Japanese learners? The mining grindset never stops! I love mining new Japanese words and learning them but mining has never been convenient especially on mobile devices. At home I'd use [asbplayer](https://docs.asbplayer.dev/) + Yomitan + Anki to do my mining but when I want to watch anime while commuting, it frustrates me that I don't get to mine new words. The was this project called [jidoujisho](https://github.com/arianneorpilla/jidoujisho) which was exactly what I needed but there were multiple issues and the repo is unfortunately archived. I decided to make my own open-source version, especially now with the help of AI-assisted coding. Really excited and looking forward to how this project turns out!
+What's up fellow Japanese learners? The mining grindset never stops! I love mining new Japanese words and learning them but mining has never been convenient especially on mobile devices. At home I'd use [asbplayer](https://docs.asbplayer.dev/) + Yomitan + Anki to do my mining but when I want to watch anime while commuting, it frustrates me that I don't get to mine new words. There was this project called [jidoujisho](https://github.com/arianneorpilla/jidoujisho) which was exactly what I needed but there were a few issues and the project was discontinued. I decided to make my own open-source version, with the help of AI-assisted coding. I'm really excited to see where it goes. Let's enjoy the mining journey together! ⛏️
 
 ### 📣 Special Shoutouts
 - **[Trenton](https://www.youtube.com/@%E3%83%88%E3%83%AC%E3%83%B3%E3%83%88%E3%83%B3)** - Check out this [video](https://youtu.be/_MWtbI4IwfU) that started my mining journey
