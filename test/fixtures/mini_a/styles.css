@@ -1,0 +1,5 @@
+/* fixture */
+[data-sc-content="sense"] { color: red; }
+.gloss-sc-span, li { margin: 0; }
+@media (max-width: 400px) { span { font-size: 90%; } }
+@import url("https://evil.test/x.css");

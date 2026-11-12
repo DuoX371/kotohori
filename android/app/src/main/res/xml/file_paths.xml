@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the cache subfolder where card media (screenshot, audio clip) is written. -->
+<paths>
+    <cache-path name="anki_media" path="anki_media/" />
+</paths>

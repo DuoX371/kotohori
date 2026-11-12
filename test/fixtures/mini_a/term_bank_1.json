@@ -1,0 +1,12 @@
+[
+["食べる","たべる","v1","v1",10,["to eat"],1,"common"],
+["行く","いく","v5","v5",10,["to go"],2,"common"],
+["読む","よむ","v5","v5",10,["to read"],3,"common"],
+["高い","たかい","adj-i","adj-i",10,["high","expensive"],4,"common"],
+["来る","くる","vk","vk",10,["to come"],5,"common"],
+["為る","する","vs","vs",5,["to do"],6,""],
+["する","する","vs","vs",10,["to do (kana)"],6,"common"],
+["日本","にほん","n","",10,["Japan"],7,"common"],
+["日本語","にほんご","n","",10,[{"type":"structured-content","content":[{"tag":"span","data":{"content":"sense"},"style":{"fontWeight":"bold","marginLeft":0.5},"content":"Japanese language"},{"tag":"img","path":"img/dot.png","width":1,"height":1},"<script>alert(1)</script>"]}],8,"common"],
+["書く","かく","n","",10,["(fixture: wrongly typed as noun)"],9,""]
+]

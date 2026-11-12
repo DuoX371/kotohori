@@ -1,0 +1,15 @@
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.dart"
+      run: dart format {staged_files}
+      stage_fixed: true        # re-stage files the formatter changed
+    analyze:
+      glob: "*.dart"
+      run: flutter analyze
+
+pre-push:
+  commands:
+    test:
+      run: flutter test

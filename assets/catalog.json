@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "groups": [
+    {
+      "type": "term",
+      "items": [
+        {
+          "id": "jitendex",
+          "name": "Jitendex",
+          "description": "Free, openly licensed Japanese-English dictionary with example sentences, usage notes and cross references.",
+          "homepage": "https://jitendex.org",
+          "downloadUrl": "https://github.com/stephenmk/stephenmk.github.io/releases/latest/download/jitendex-yomitan.zip"
+        },
+        {
+          "id": "jmnedict",
+          "name": "JMnedict",
+          "description": "Japanese proper names (people, places, organisations) from EDRDG.",
+          "homepage": "https://github.com/yomidevs/jmdict-yomitan#jmnedict-for-yomitan",
+          "downloadUrl": "https://github.com/yomidevs/jmdict-yomitan/releases/latest/download/JMnedict.zip"
+        }
+      ]
+    },
+    {
+      "type": "kanji",
+      "items": [
+        {
+          "id": "kanjidic",
+          "name": "KANJIDIC",
+          "description": "Kanji readings, meanings, stroke counts, grade, JLPT level and frequency.",
+          "homepage": "https://github.com/yomidevs/jmdict-yomitan#kanjidic-for-yomitan",
+          "downloadUrl": "https://github.com/yomidevs/jmdict-yomitan/releases/latest/download/KANJIDIC_english.zip"
+        }
+      ]
+    },
+    {
+      "type": "frequency",
+      "items": [
+        {
+          "id": "jpdb-freq",
+          "name": "JPDB v2.2 Frequency",
+          "description": "Word frequency from the jpdb.io corpus (anime, dramas, novels, games).",
+          "homepage": "https://github.com/Kuuuube/yomitan-dictionaries#jpdb-v22-frequency",
+          "downloadUrl": "https://github.com/Kuuuube/yomitan-dictionaries/releases/download/yomitan-permalink/JPDB_v2.2_Frequency_Kana.zip"
+        },
+        {
+          "id": "bccwj",
+          "name": "BCCWJ",
+          "description": "Frequency from the Balanced Corpus of Contemporary Written Japanese.",
+          "homepage": "https://github.com/Kuuuube/yomitan-dictionaries#bccwj-suw-luw-combined",
+          "downloadUrl": "https://github.com/Kuuuube/yomitan-dictionaries/releases/download/yomitan-permalink/BCCWJ_SUW_LUW_combined.zip"
+        }
+      ]
+    }
+  ]
+}
