@@ -45,7 +45,7 @@ versions. Found a bug or have an idea? Open an
 [issue](https://github.com/DuoX371/kotohori/issues).
 
 Download the latest APK from [Releases](https://github.com/DuoX371/kotohori/releases)
-(most phones: `arm64-v8a`). Kotohori tells you when a new version is out.
+(most phones: the `arm64` one). Kotohori tells you when a new version is out.
 
 ## 🎞️ Screenshots
 
