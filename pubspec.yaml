@@ -51,6 +51,7 @@ dependencies:
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
   charset: ^2.0.1
+  webview_flutter_android: ^4.14.1
 
 dev_dependencies:
   flutter_test:

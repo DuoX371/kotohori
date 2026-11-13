@@ -88,28 +88,34 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: SegmentedButton<ThemeMode>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
-                      value: ThemeMode.dark,
-                      icon: Icon(Icons.dark_mode_outlined),
-                      label: Text('Dark'),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.light,
-                      icon: Icon(Icons.light_mode_outlined),
-                      label: Text('Light'),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.system,
-                      icon: Icon(Icons.brightness_auto_outlined),
-                      label: Text('Match system'),
-                    ),
-                  ],
-                  selected: {mode},
-                  onSelectionChanged: (s) =>
-                      ref.read(themeModeProvider.notifier).set(s.single),
+                // Phones: full width, no icons, so "System" doesn't wrap.
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final icons = box.maxWidth >= 400;
+                    return SegmentedButton<ThemeMode>(
+                      showSelectedIcon: false,
+                      expandedInsets: icons ? null : EdgeInsets.zero,
+                      segments: [
+                        for (final (value, icon, label) in const [
+                          (ThemeMode.dark, Icons.dark_mode_outlined, 'Dark'),
+                          (ThemeMode.light, Icons.light_mode_outlined, 'Light'),
+                          (
+                            ThemeMode.system,
+                            Icons.brightness_auto_outlined,
+                            'System',
+                          ),
+                        ])
+                          ButtonSegment(
+                            value: value,
+                            icon: icons ? Icon(icon) : null,
+                            label: Text(label, maxLines: 1, softWrap: false),
+                          ),
+                      ],
+                      selected: {mode},
+                      onSelectionChanged: (s) =>
+                          ref.read(themeModeProvider.notifier).set(s.single),
+                    );
+                  },
                 ),
               ),
             ],

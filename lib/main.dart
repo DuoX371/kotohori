@@ -34,6 +34,9 @@ Future<void> main() async {
   // file_picker caches a full copy of every picked file (only dictionary zips use it now).
   Directory(p.join(temp.path, 'file_picker')).delete(recursive: true).ignore();
   final db = AppDb.open(File(paths.dbPath));
+  // Create the schema here first: on a fresh install the purge worker below
+  // would otherwise race this connection to create it, and one would fail.
+  await db.customSelect('SELECT 1').get();
   final prefs = await SharedPreferences.getInstance();
 
   // Finish deletes / drop half-imports interrupted by a previous app kill.

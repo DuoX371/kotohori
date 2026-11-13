@@ -10,6 +10,7 @@ import '../dictionary/lookup/lookup.dart' show LookupResult;
 import '../dictionary/ui/providers.dart'
     show emptyLookupMessageProvider, htmlBuilderProvider;
 import 'player_controller.dart';
+import '../../platform/web_view.dart';
 
 /// Dictionary popup over the video. Renders the same results page as
 /// Settings → Look up a word, so dictionary styles apply.
@@ -122,6 +123,7 @@ for (const [i, decks] of Object.entries(${jsonEncode(marks)})) {
             r,
             emptyMessage: ref.read(emptyLookupMessageProvider),
             addButtons: true,
+            dark: true, // the player is always dark
           ),
     );
   }
@@ -145,7 +147,7 @@ for (const [i, decks] of Object.entries(${jsonEncode(marks)})) {
               onPressed: widget.c.closeLookup,
             ),
           ),
-          Expanded(child: WebViewWidget(controller: _web)),
+          Expanded(child: appWebView(_web)),
         ],
       ),
     );

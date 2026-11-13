@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../../platform/web_view.dart';
+
+import '../../settings/appearance_settings.dart';
 import '../../settings/settings_screen.dart';
 import '../lookup/lookup.dart';
 import 'providers.dart';
@@ -30,6 +33,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           .page(
             LookupResult.empty,
             emptyMessage: 'Type Japanese text to look up',
+            dark: appIsDark(ref),
           ),
     );
   }
@@ -44,7 +48,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     await _web.loadHtmlString(
       ref
           .read(htmlBuilderProvider)
-          .page(result, emptyMessage: ref.read(emptyLookupMessageProvider)),
+          .page(
+            result,
+            emptyMessage: ref.read(emptyLookupMessageProvider),
+            dark: appIsDark(ref),
+          ),
     );
   }
 
@@ -112,7 +120,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Expanded(
             child: SafeArea(
               top: false,
-              child: WebViewWidget(controller: _web),
+              child: appWebView(_web),
             ), // clear the nav bar / taskbar
           ),
         ],

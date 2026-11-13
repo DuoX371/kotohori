@@ -109,4 +109,25 @@ class AppDb extends _$AppDb {
 
   @override
   int get schemaVersion => 1;
+
+  /// Creation is repeatable: if an earlier one was cut short (tables and
+  /// indexes made, version not yet saved), it finishes instead of failing on
+  /// "index already exists". Tables already use IF NOT EXISTS.
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) async {
+      for (final e in allSchemaEntities) {
+        if (e is Index) {
+          await customStatement(
+            e.createStatementsByDialect.values.first.replaceFirstMapped(
+              RegExp(r'^CREATE (UNIQUE )?INDEX '),
+              (g) => 'CREATE ${g[1] ?? ''}INDEX IF NOT EXISTS ',
+            ),
+          );
+        } else {
+          await m.create(e);
+        }
+      }
+    },
+  );
 }

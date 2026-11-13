@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/status-beta-E2B85C" alt="Status: beta">
   <img src="https://img.shields.io/badge/license-GPL--3.0-blue" alt="License: GPL-3.0">
   <img src="https://img.shields.io/badge/platform-Android-3DDC84" alt="Platform: Android">
   <img src="https://img.shields.io/badge/built%20with-Flutter-02569B" alt="Built with Flutter">
@@ -35,6 +36,16 @@ Kotohori is built for one loop: **watch/read → tap → understand → mine**. 
 - **One tap sends a card to AnkiDroid**, with the sentence, an audio clip, a screenshot and word audio
 - **Ready-made Anki Note Types**, set up in AnkiDroid for you
 - **Edit before you send**: tweak any field first
+
+## 🚧 Status
+
+Kotohori is **in development and in beta testing**. The player, look up and
+mining work day to day, but expect rough edges and things to change between
+versions. Found a bug or have an idea? Open an
+[issue](https://github.com/DuoX371/kotohori/issues).
+
+Download the latest APK from [Releases](https://github.com/DuoX371/kotohori/releases)
+(most phones: `arm64-v8a`). Kotohori tells you when a new version is out.
 
 ## 🎞️ Screenshots
 

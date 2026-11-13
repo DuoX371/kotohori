@@ -43,10 +43,12 @@ class LookupHtmlBuilder {
 
   /// [addButtons]: adds a ＋ per word that posts its group index to the
   /// `Kotohori` JavaScript channel (only our own handler; dictionary HTML is sanitized).
+  /// [dark]: the app's theme (not the system's, which can differ).
   String page(
     LookupResult result, {
     String? emptyMessage,
     bool addButtons = false,
+    bool dark = false,
   }) {
     final dicts = <int, Dictionary>{};
     final body = StringBuffer();
@@ -95,7 +97,7 @@ class LookupHtmlBuilder {
       body.write('</section>');
     }
     final css = dicts.values.map(_scoped).join('\n');
-    return '<!doctype html><html><head><meta charset="utf-8">'
+    return '<!doctype html><html${dark ? ' class="dark"' : ''}><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<style>$_baseCss</style><style>$css</style></head><body>$body</body></html>';
   }
@@ -130,8 +132,8 @@ String _freqLabel(Object? d) => switch (d) {
 };
 
 const _baseCss = '''
-:root { color-scheme: light dark; --fg:#1d1d1f; --bg:#fff; --muted:#6b6b70; --chip:#ececf0; --line:#e3e3e8; }
-@media (prefers-color-scheme: dark) { :root { --fg:#ececf0; --bg:#17171a; --muted:#9a9aa2; --chip:#2a2a30; --line:#2c2c33; } }
+:root { color-scheme: light; --fg:#1d1d1f; --bg:#fff; --muted:#6b6b70; --chip:#ececf0; --line:#e3e3e8; }
+:root.dark { color-scheme: dark; --fg:#ececf0; --bg:#17171a; --muted:#9a9aa2; --chip:#2a2a30; --line:#2c2c33; }
 body { margin:0; padding:12px 16px 32px; font-family: system-ui, "Noto Sans JP", sans-serif; color:var(--fg); background:var(--bg); line-height:1.5; }
 .group { border-bottom:1px solid var(--line); padding:8px 0 12px; }
 h2 { font-size:1.6em; margin:0 0 4px; font-weight:600; }

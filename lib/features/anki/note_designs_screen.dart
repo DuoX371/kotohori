@@ -8,6 +8,7 @@ import 'anki_providers.dart';
 import 'anki_settings.dart';
 import 'card_builder.dart';
 import 'note_designs.dart';
+import '../../platform/web_view.dart';
 
 /// Settings → Anki → Card designs: preview the ready-made note types and add one to AnkiDroid.
 class NoteDesignsScreen extends ConsumerStatefulWidget {
@@ -189,10 +190,7 @@ class _NoteDesignsScreenState extends ConsumerState<NoteDesignsScreen> {
           ),
           const SizedBox(height: 12),
           Card(
-            child: SizedBox(
-              height: _cardHeight,
-              child: WebViewWidget(controller: _web),
-            ),
+            child: SizedBox(height: _cardHeight, child: appWebView(_web)),
           ),
           if (_design.credit case final c?)
             Padding(

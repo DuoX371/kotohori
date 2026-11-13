@@ -10,6 +10,7 @@ import '../../app/theme.dart';
 import 'anki_providers.dart';
 import 'anki_settings.dart';
 import 'card_exporter.dart';
+import '../../platform/web_view.dart';
 
 /// Review and edit a card before sending it to AnkiDroid.
 class CardEditorScreen extends ConsumerStatefulWidget {
@@ -262,7 +263,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
             if (_editHtml)
               _field('Definition (HTML)', _definition, maxLines: 12)
             else
-              SizedBox(height: 260, child: WebViewWidget(controller: _preview)),
+              SizedBox(height: 260, child: appWebView(_preview)),
             const SizedBox(height: 12),
             _field('Source', _source),
           ],

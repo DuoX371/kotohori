@@ -21,3 +21,12 @@ class AppThemeMode extends Notifier<ThemeMode> {
 final themeModeProvider = NotifierProvider<AppThemeMode, ThemeMode>(
   AppThemeMode.new,
 );
+
+/// Whether the app is showing its dark theme (for pages drawn outside Flutter).
+bool appIsDark(WidgetRef ref) => switch (ref.read(themeModeProvider)) {
+  ThemeMode.dark => true,
+  ThemeMode.light => false,
+  ThemeMode.system =>
+    WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+        Brightness.dark,
+};

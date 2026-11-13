@@ -65,6 +65,36 @@ class _AnkiSettingsScreenState extends ConsumerState<AnkiSettingsScreen> {
         );
   }
 
+  /// Label and picker share the row 2:3 (like the field rows), so long deck
+  /// names can't squeeze the label on a phone.
+  Widget _pickerRow({
+    required String label,
+    required bool connected,
+    required Widget picker,
+  }) => ListTile(
+    enabled: connected,
+    title: Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label),
+              if (!connected)
+                Text(
+                  'Needs access to AnkiDroid (above)',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(flex: 3, child: picker),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(ankiSettingsProvider);
@@ -105,19 +135,25 @@ class _AnkiSettingsScreenState extends ConsumerState<AnkiSettingsScreen> {
                 Section(
                   title: 'Cards go to',
                   children: [
-                    ListTile(
-                      enabled: connected,
-                      title: const Text('Deck'),
-                      subtitle: connected ? null : needsAccess,
-                      trailing: DropdownButton<int>(
+                    _pickerRow(
+                      label: 'Deck',
+                      connected: connected,
+                      picker: DropdownButton<int>(
                         value: _decks.any((d) => d.id == s.deckId)
                             ? s.deckId
                             : null,
                         hint: const Text('Choose'),
+                        isExpanded: true,
                         underline: const SizedBox(),
                         items: [
                           for (final d in _decks)
-                            DropdownMenuItem(value: d.id, child: Text(d.name)),
+                            DropdownMenuItem(
+                              value: d.id,
+                              child: Text(
+                                d.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                         ],
                         onChanged: !connected
                             ? null
@@ -126,17 +162,23 @@ class _AnkiSettingsScreenState extends ConsumerState<AnkiSettingsScreen> {
                               ),
                       ),
                     ),
-                    ListTile(
-                      enabled: connected,
-                      title: const Text('Note type'),
-                      subtitle: connected ? null : needsAccess,
-                      trailing: DropdownButton<int>(
+                    _pickerRow(
+                      label: 'Note type',
+                      connected: connected,
+                      picker: DropdownButton<int>(
                         value: model?.id,
                         hint: const Text('Choose'),
+                        isExpanded: true,
                         underline: const SizedBox(),
                         items: [
                           for (final m in _models)
-                            DropdownMenuItem(value: m.id, child: Text(m.name)),
+                            DropdownMenuItem(
+                              value: m.id,
+                              child: Text(
+                                m.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                         ],
                         onChanged: !connected
                             ? null
