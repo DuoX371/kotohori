@@ -9,9 +9,7 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
-### Added
-
-### Changed
+## [0.1.1] - 2026-11-13
 
 ### Fixed
 
@@ -33,5 +31,6 @@ First beta.
 - 🔔 **Notifications:** the bell walks you through installing a dictionary and
   connecting AnkiDroid, and tells you when a new version is out
 
-[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/DuoX371/kotohori/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/DuoX371/kotohori/releases/tag/v0.1.0
