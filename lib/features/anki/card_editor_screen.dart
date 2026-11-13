@@ -9,6 +9,7 @@ import '../../platform/anki_bridge.dart';
 import '../../app/theme.dart';
 import 'anki_providers.dart';
 import 'anki_settings.dart';
+import 'card_builder.dart';
 import 'card_exporter.dart';
 import '../../platform/web_view.dart';
 
@@ -25,7 +26,7 @@ class CardEditorScreen extends ConsumerStatefulWidget {
 
 class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   late final CardDraft _d = widget.draft;
-  final _sentence = TextEditingController();
+  final _sentence = _BoldWordController();
   final _word = TextEditingController();
   final _reading = TextEditingController();
   final _definition = TextEditingController();
@@ -47,7 +48,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       if (mounted) setState(() => _decks = d);
     }, onError: (_) {});
     final d = _d;
-    _sentence.text = d.sentence;
+    final sentence = parseBoldSentence(d.sentence);
+    _sentence
+      ..bold = sentence.bold
+      ..near = sentence.start
+      ..text = sentence.text;
     _word.text = d.word;
     _reading.text = d.reading;
     _definition.text = d.definition;
@@ -77,7 +82,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
 
   Future<void> _send({bool allowDuplicate = false}) async {
     final d = _d
-      ..sentence = _sentence.text
+      ..sentence = _sentence.html
       ..word = _word.text
       ..reading = _reading.text
       ..definition = _definition.text
@@ -202,7 +207,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   title: const Text('Already in Anki'),
                   subtitle: Text(
                     'You have a card for "${d.word}" in '
-                    '${d.existingDecks!.join(', ')}. Adding makes another one.',
+                    '${d.existingDecks!.join(', ')}.',
                   ),
                 ),
               ),
@@ -463,6 +468,55 @@ class _AudioButton extends StatelessWidget {
             )
           : const Icon(Icons.play_arrow),
       label: Text(label),
+    );
+  }
+}
+
+/// The sentence field: plain text with the looked-up word drawn in bold (it
+/// follows the word through edits); [html] is what Anki gets, as before.
+class _BoldWordController extends TextEditingController {
+  String? bold;
+  int near = 0;
+
+  (int, int)? get _range => boldRange(text, bold, near);
+
+  String get html {
+    final r = _range;
+    return r == null
+        ? boldSentence(text, 0, 0)
+        : boldSentence(text, r.$1, r.$2);
+  }
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    final r = _range;
+    // While the keyboard is composing (e.g. kana → kanji), keep its underline.
+    if (r == null || (withComposing && value.isComposingRangeValid)) {
+      return super.buildTextSpan(
+        context: context,
+        style: style,
+        withComposing: withComposing,
+      );
+    }
+    final (start, length) = r;
+    near = start;
+    return TextSpan(
+      style: style,
+      children: [
+        TextSpan(text: text.substring(0, start)),
+        TextSpan(
+          text: text.substring(start, start + length),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        TextSpan(text: text.substring(start + length)),
+      ],
     );
   }
 }

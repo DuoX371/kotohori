@@ -12,6 +12,37 @@ String boldSentence(String text, int start, int length) {
   return '${e(text.substring(0, s))}<b>${e(text.substring(s, end))}</b>${e(text.substring(end))}';
 }
 
+/// The reverse of [boldSentence], for editing: plain text, the bold part and
+/// where it starts.
+({String text, String? bold, int start}) parseBoldSentence(String html) {
+  String plain(String s) => s
+      .replaceAll('<br>', '\n')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&amp;', '&');
+  final m = RegExp('<b>(.*?)</b>', dotAll: true).firstMatch(html);
+  if (m == null) return (text: plain(html), bold: null, start: 0);
+  final before = plain(html.substring(0, m.start)), bold = plain(m[1]!);
+  return (
+    text: before + bold + plain(html.substring(m.end)),
+    bold: bold.isEmpty ? null : bold,
+    start: before.length,
+  );
+}
+
+/// Where [bold] is in [text] after edits: (start, length) of the occurrence
+/// nearest [near] (its old start); null if it's gone.
+(int, int)? boldRange(String text, String? bold, int near) {
+  if (bold == null || bold.isEmpty) return null;
+  (int, int)? best;
+  for (var i = text.indexOf(bold); i >= 0; i = text.indexOf(bold, i + 1)) {
+    if (best == null || (i - near).abs() < (best.$1 - near).abs()) {
+      best = (i, bold.length);
+    }
+  }
+  return best;
+}
+
 /// "12:34" (or "1:02:03").
 String clock(Duration at) {
   final h = at.inHours, m = at.inMinutes % 60, s = at.inSeconds % 60;

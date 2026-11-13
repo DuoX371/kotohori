@@ -3,6 +3,28 @@ import 'package:kotohori/features/anki/anki_settings.dart';
 import 'package:kotohori/features/anki/card_builder.dart';
 
 void main() {
+  test('parseBoldSentence undoes boldSentence', () {
+    for (final (text, start, len) in [
+      ('昨日は何も食べなかった', 5, 6),
+      ('東京に<行き>\n本 & more', 3, 1),
+      ('no bold here', 0, 0),
+      ('猫と猫', 2, 1), // the second one
+    ]) {
+      final p = parseBoldSentence(boldSentence(text, start, len));
+      expect(p.text, text);
+      expect(p.bold, len == 0 ? isNull : text.substring(start, start + len));
+      if (len > 0) expect(p.start, start);
+    }
+  });
+
+  test('boldRange follows the word after edits', () {
+    expect(boldRange('私をお嫁さんにして', 'お嫁さん', 2), (2, 4));
+    expect(boldRange('ねえ、私をお嫁さんにして', 'お嫁さん', 2), (5, 4)); // text added before
+    expect(boldRange('猫と猫', '猫', 2), (2, 1)); // nearest to where it was
+    expect(boldRange('私をにして', 'お嫁さん', 2), isNull); // word deleted
+    expect(boldRange('abc', null, 0), isNull);
+  });
+
   test('boldSentence bolds the matched span, escapes, keeps line breaks', () {
     expect(boldSentence('昨日は何も食べなかった', 5, 6), '昨日は何も<b>食べなかった</b>');
     expect(boldSentence('東京に<行き>\n本', 3, 1), '東京に<b>&lt;</b>行き&gt;<br>本');

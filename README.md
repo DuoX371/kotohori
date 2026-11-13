@@ -49,6 +49,16 @@ Download the latest APK from [Releases](https://github.com/DuoX371/kotohori/rele
 
 ## 🎞️ Screenshots
 
+<p align="center">
+  <img src="docs/screenshots/player-lookup.jpg" width="49%" alt="Player with a word looked up">
+  <img src="docs/screenshots/card-editor.jpg" width="49%" alt="Card editor">
+  <img src="docs/screenshots/dictionary.jpg" width="49%" alt="Dictionary search">
+  <img src="docs/screenshots/home.jpg" width="49%" alt="Home screen">
+  <img src="docs/screenshots/anki-card.jpg" width="32%" alt="The card in AnkiDroid">
+  <img src="docs/screenshots/get-dictionaries.jpg" width="32%" alt="Recommended dictionaries">
+  <img src="docs/screenshots/anki-settings.jpg" width="32%" alt="Anki settings">
+</p>
+
 ## ⌨️ Keyboard shortcuts
 
 In the player, with a hardware keyboard:
