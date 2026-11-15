@@ -9,8 +9,11 @@ import 'dart:convert';
 /// dictionaries' styles.css selectors keep working.
 class GlossaryRenderer {
   /// [mediaUrl] maps an image `path` inside the dictionary zip to a URL; null skips the image.
-  GlossaryRenderer({this.mediaUrl});
+  /// [spaceInlineSiblings]: a space between side-by-side spans, so chips like
+  /// "noun" "adverb" stay apart where styles.css doesn't apply (some Anki screens).
+  GlossaryRenderer({this.mediaUrl, this.spaceInlineSiblings = false});
   final String? Function(String path)? mediaUrl;
+  final bool spaceInlineSiblings;
 
   /// Renders a term's `glossary` column (raw JSON array) as `<ul>` of items.
   String glossaryList(String glossaryJson) {
@@ -68,7 +71,11 @@ class GlossaryRenderer {
       case String s:
         b.write(_text(s));
       case List l:
-        for (final c in l) {
+        bool isSpan(Object? x) => x is Map && (x['tag'] ?? 'span') == 'span';
+        for (final (i, c) in l.indexed) {
+          if (spaceInlineSiblings && i > 0 && isSpan(l[i - 1]) && isSpan(c)) {
+            b.write(' ');
+          }
           _node(c, b);
         }
       case Map m:
