@@ -9,6 +9,11 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Fixed
+
+- "Playback error: Could not open codec" no longer stays on screen on some
+  devices while the video plays fine
+
 ## [0.1.3] - 2026-11-15
 
 ### Added
