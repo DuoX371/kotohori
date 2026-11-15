@@ -1,0 +1,106 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate tag matches pubspec version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PUBSPEC=$(grep -E '^version:' pubspec.yaml | sed -E 's/version:[[:space:]]*//; s/\+.*//')
+          echo "Tag: $TAG  pubspec: $PUBSPEC"
+          if [ "$TAG" != "$PUBSPEC" ]; then
+            echo "::error::Tag v$TAG does not match pubspec.yaml version $PUBSPEC. Bump the version before tagging."
+            exit 1
+          fi
+          echo "VERSION=$TAG" >> "$GITHUB_ENV"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.9'
+          cache: true
+
+      - name: Restore signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          # Without key.properties Gradle silently signs with the debug key, and
+          # users couldn't update over their installed copy. Fail instead.
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Signing secrets are missing. Add them under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=release.jks
+          EOF
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter analyze && flutter test
+
+      - name: Build APKs
+        run: flutter build apk --release --split-per-abi
+
+      - name: Rename APKs
+        run: |
+          mkdir -p out
+          src=build/app/outputs/flutter-apk
+          cp "$src/app-arm64-v8a-release.apk"   "out/kotohori-v$VERSION-arm64.apk"
+          cp "$src/app-armeabi-v7a-release.apk" "out/kotohori-v$VERSION-armv7.apk"
+          cp "$src/app-x86_64-release.apk"      "out/kotohori-v$VERSION-x86_64.apk"
+          ls -l out
+
+      - name: Write release notes
+        run: |
+          # This version's section of the changelog: from "## [x.y.z]" up to the next "## [".
+          awk -v h="## [$VERSION]" 'index($0, h) == 1 {f = 1; next} f && /^## \[/ {exit} f' \
+            docs/CHANGELOG.md > out/changes.md
+          if ! grep -q '[^[:space:]]' out/changes.md; then
+            echo "::error::docs/CHANGELOG.md has no '## [$VERSION]' section. Move Unreleased to it before tagging."
+            exit 1
+          fi
+          # Template: drop the instructions comment at the top, put the changes
+          # where the "Paste ..." comment is, and fill in VERSION.
+          awk -v changes=out/changes.md '
+            !started && /^<!--$/ {skip = 1; next}
+            skip { if (/^-->$/) {skip = 0; started = 1}; next }
+            !started && /^$/ {next}
+            {started = 1}
+            /^<!-- Paste / { while ((getline line < changes) > 0) print line; next }
+            {print}
+          ' docs/release-notes-template.md | sed "s/VERSION/$VERSION/g" > out/release-notes.md
+          cat out/release-notes.md
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Kotohori ${{ env.VERSION }}
+          body_path: out/release-notes.md
+          files: out/*.apk
+          fail_on_unmatched_files: true
