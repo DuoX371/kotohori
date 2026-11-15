@@ -12,7 +12,7 @@ new version and date, and start a fresh **Unreleased** above it.
 ### Added
 
 - Double-tap the left or right side of the video to skip 5 seconds back or
-  forward; keep tapping to skip further, like YouTube
+  forward; keep tapping to skip further
 
 ### Fixed
 
