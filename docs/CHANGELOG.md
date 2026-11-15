@@ -9,6 +9,11 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Added
+
+- Copy scene button in the player: copies the frame on screen, with its
+  subtitle, so you can paste it into a chat
+
 ### Changed
 
 - The word popup in the player slides in and out instead of appearing and
@@ -19,7 +24,11 @@ new version and date, and start a fresh **Unreleased** above it.
 ### Fixed
 
 - Subtitles sit on the picture instead of on the black bar under it when the
-  video doesn't fill the screen, such as 16:9 videos on 16:10 tablets
+  video doesn't fill the screen
+- Keyboard shortcuts such as Space work straight away after closing the word
+  popup, instead of the first key press being lost
+- The subtitle appearance preview shows the text at the size it will have
+  next to the video, instead of looking bigger than in the player
 
 ## [0.1.2] - 2026-11-15
 

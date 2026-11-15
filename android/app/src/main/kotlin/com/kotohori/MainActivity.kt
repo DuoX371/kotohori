@@ -4,6 +4,8 @@ import android.app.PendingIntent
 import android.app.PictureInPictureParams
 import android.app.RemoteAction
 import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -15,6 +17,8 @@ import android.os.StatFs
 import android.util.Rational
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import java.io.File
 import androidx.lifecycle.Lifecycle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -76,10 +80,22 @@ class MainActivity : FlutterActivity() {
                 }
             }
         MethodChannel(messenger, "kotohori/app").setMethodCallHandler { call, result ->
-            if (call.method == "version") {
-                result.success(packageManager.getPackageInfo(packageName, 0).versionName)
-            } else {
-                result.notImplemented()
+            when (call.method) {
+                "version" -> result.success(packageManager.getPackageInfo(packageName, 0).versionName)
+                // Image on the clipboard as a FileProvider URI; the clipboard grants
+                // read access to whichever app pastes it.
+                "copyImage" -> try {
+                    val uri = FileProvider.getUriForFile(
+                        this, "$packageName.fileprovider", File(call.argument<String>("path")!!),
+                    )
+                    getSystemService(ClipboardManager::class.java)
+                        .setPrimaryClip(ClipData.newUri(contentResolver, "Kotohori scene", uri))
+                    // Android 13+ shows its own "copied" preview.
+                    result.success(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                } catch (e: Exception) {
+                    result.error("copyImage", e.message, null)
+                }
+                else -> result.notImplemented()
             }
         }
         pip = MethodChannel(messenger, "kotohori/pip").apply {

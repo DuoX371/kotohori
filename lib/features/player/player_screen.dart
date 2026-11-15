@@ -11,12 +11,13 @@ import '../anki/anki_providers.dart';
 import '../anki/anki_settings.dart';
 import '../anki/card_editor_screen.dart';
 import '../dictionary/ui/providers.dart'
-    show htmlBuilderProvider, lookupProvider;
+    show appPathsProvider, htmlBuilderProvider, lookupProvider;
 import '../home/display_name.dart';
 import '../settings/player_settings.dart';
 import '../subtitles/auto_sync.dart';
 import '../subtitles/cue.dart';
 import '../subtitles/embedded_subtitles.dart';
+import 'copy_scene.dart';
 import 'cue_list.dart';
 import 'lookup_panel.dart';
 import 'player_controller.dart';
@@ -225,6 +226,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         )
         .then((_) => _poke());
     // First frame a few seconds in (past black/logos), then frame + resume point every 30 s.
+    c.lookup.addListener(_refocusOnClose);
     _thumbTimer = Timer(const Duration(seconds: 8), () {
       _grabThumbnail();
       _thumbTimer = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -234,8 +236,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     });
   }
 
+  /// However the popup closes (X, Esc, tapping the video), keyboard focus may
+  /// still sit on its removed WebView, so the next Space would be lost.
+  void _refocusOnClose() {
+    if (!c.lookup.isOpen) _keys.requestFocus();
+  }
+
   @override
   void dispose() {
+    c.lookup.removeListener(_refocusOnClose);
     _save();
     for (final s in _pipSubs) {
       s.cancel();
@@ -420,6 +429,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       MaterialPageRoute<void>(builder: (_) => CardEditorScreen(draft: draft)),
     );
     _ankiChanged.value++;
+  }
+
+  /// Copies the frame on screen, with the subtitles if they're showing, to share.
+  Future<void> _copyScene() async {
+    final messenger = ScaffoldMessenger.of(_scaffold.currentContext!);
+    void say(String text) => messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+    try {
+      final frame = await c.player.screenshot(format: 'image/jpeg');
+      if (frame == null) throw StateError('no frame');
+      final systemShows = await copyScene(
+        frame,
+        subtitle: c.subtitlesOn
+            ? c.active.map((cue) => cue.text).join('\n')
+            : null,
+        tempDir: ref.read(appPathsProvider).tempDir,
+        media: ref.read(mediaToolsProvider),
+      );
+      if (!systemShows) say('Scene copied');
+    } catch (_) {
+      say("Couldn't copy this scene");
+    }
   }
 
   /// Runs a control action and keeps the controls visible.
@@ -648,6 +680,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+          ),
+          IconButton(
+            tooltip: 'Copy scene',
+            color: Colors.white,
+            icon: const Icon(Icons.photo_camera_outlined),
+            onPressed: _act(_copyScene),
           ),
           ListenableBuilder(
             listenable: c,
