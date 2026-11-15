@@ -9,6 +9,8 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-15
+
 ### Added
 
 - Copy scene button in the player: copies the frame on screen, with its
@@ -65,7 +67,8 @@ First beta.
 - 🔔 **Notifications:** the bell walks you through installing a dictionary and
   connecting AnkiDroid, and tells you when a new version is out
 
-[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/DuoX371/kotohori/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/DuoX371/kotohori/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/DuoX371/kotohori/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/DuoX371/kotohori/releases/tag/v0.1.0
