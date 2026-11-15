@@ -21,7 +21,9 @@ import 'cue_list.dart';
 import 'lookup_panel.dart';
 import 'player_controller.dart';
 import 'player_options_sheet.dart';
+import 'seek_flash.dart';
 import 'subtitle_overlay.dart';
+import 'tap_seeker.dart';
 
 /// After a pinch from zoom [start] to [now] (0 fit … 1 fill): fill or fit?
 /// A clear pinch goes the way the fingers moved; a small one snaps back.
@@ -236,6 +238,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _hideTimer?.cancel();
     _thumbTimer?.cancel();
     _keys.dispose();
+    _singleTap?.cancel();
+    _flashOff?.cancel();
     _zoom.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(
@@ -251,6 +255,45 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (!_controls) setState(() => _controls = true);
     _hideTimer = Timer(const Duration(seconds: 3), () {
       if (mounted && c.player.state.playing) setState(() => _controls = false);
+    });
+  }
+
+  // Double-tap seeking (left/right thirds), like YouTube.
+  final _seeker = TapSeeker();
+  final _tapClock = Stopwatch()..start();
+  Timer? _singleTap, _flashOff;
+  SeekFlashData? _flash;
+  var _flashVisible = false;
+
+  void _onTapUp(TapUpDetails d) {
+    final w = MediaQuery.sizeOf(context).width, x = d.localPosition.dx;
+    final side = x < w / 3
+        ? TapSide.left
+        : (x > w * 2 / 3 ? TapSide.right : TapSide.middle);
+    _singleTap?.cancel();
+    final seconds = _seeker.tap(_tapClock.elapsed, side);
+    if (seconds != null) {
+      c.seekBy(Duration(seconds: seconds));
+      setState(() {
+        _flash = (
+          forward: seconds > 0,
+          seconds: _seeker.total,
+          at: d.localPosition,
+          pulse: (_flash?.pulse ?? 0) + 1,
+        );
+        _flashVisible = true;
+      });
+      _flashOff?.cancel();
+      _flashOff = Timer(TapSeeker.keepGoing, () {
+        if (mounted) setState(() => _flashVisible = false);
+      });
+      return;
+    }
+    // The middle (and closing the popup) reacts at once; on the sides a single
+    // tap waits briefly in case it becomes a double tap.
+    if (side == TapSide.middle || c.lookup.isOpen) return _toggleControls();
+    _singleTap = Timer(TapSeeker.doubleTap, () {
+      if (mounted) _toggleControls();
     });
   }
 
@@ -479,7 +522,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         if (!_pip) ...[
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: _toggleControls,
+            onTapUp: _onTapUp,
             onScaleStart: (_) {
               _zoom.stop();
               _zoomAtStart = _zoom.value;
@@ -487,6 +530,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             onScaleUpdate: _onPinchUpdate,
             onScaleEnd: (_) => _onPinchEnd(),
           ),
+          if (_flash case final flash?)
+            Positioned.fill(child: SeekFlash(flash, visible: _flashVisible)),
           if (_error != null)
             Center(
               child: Padding(
