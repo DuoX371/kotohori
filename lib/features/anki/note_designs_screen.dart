@@ -107,6 +107,18 @@ class _NoteDesignsScreenState extends ConsumerState<NoteDesignsScreen> {
           'Kotohori needs permission to add a note type to AnkiDroid',
         );
       }
+      // Already the design in use: change nothing, so an accidental tap can't
+      // reset the field setup. (AnkiDroid's copy is never overwritten anyway.)
+      final current = ref.read(ankiSettingsProvider).modelId;
+      if ((await anki.models()).any(
+        (m) => m.name == _design.name && m.id == current,
+      )) {
+        messenger.showSnackBar(
+          SnackBar(content: Text("You're already using \"${_design.name}\"")),
+        );
+        navigator.pop();
+        return;
+      }
       final id = await _design.ensure(anki);
       final model = (await anki.models()).firstWhere((m) => m.id == id);
       // Our field names map exactly; a same-named note type edited by hand falls back to guessing.

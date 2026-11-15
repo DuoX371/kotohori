@@ -9,6 +9,18 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Changed
+
+- The word popup in the player slides in and out instead of appearing and
+  disappearing at once
+- Pressing "Use this design" on the card design you already use no longer
+  resets your field setup
+
+### Fixed
+
+- Subtitles sit on the picture instead of on the black bar under it when the
+  video doesn't fill the screen, such as 16:9 videos on 16:10 tablets
+
 ## [0.1.2] - 2026-11-15
 
 ### Added
