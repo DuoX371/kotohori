@@ -1,50 +1,39 @@
-"""Builds Android launcher icons from assets/icons/adaptive_master.png.
+"""Builds the Android launcher icons and the in-app icon from assets/icons/.
 
-The master is a 108dp adaptive-icon canvas with red guide lines (visible area
-square, safe-zone circle). Guide pixels are painted navy; the result is the
-foreground layer, the background layer is the plain navy colour.
+Sources (1024 px, 108dp adaptive-icon canvas for the layers):
+  foreground.png  adaptive foreground layer (transparent around the logo)
+  monochrome.png  Android 13+ themed-icon layer (black on transparent)
+  icon.png        full square icon (background colour + logo)
+The background layer is the plain colour in values/ic_launcher_background.xml.
 """
-import os
-from PIL import Image
+from PIL import Image, ImageDraw
 
-NAVY = (31, 42, 92)
-RED = (210, 55, 56)
 RES = 'android/app/src/main/res'
-src = 'assets/icons/adaptive_master.png'
-
-im = Image.open(src).convert('RGBA')
-px = im.load()
-w, h = im.size
+ICONS = 'assets/icons'
 
 
-def on_guide(p):
-    """Pixel is red, or a red/navy blend (the anti-aliased guide lines)."""
-    r, g, b, a = p
-    if a == 0:
-        return True  # rounded-corner transparency outside the tile
-    d = [RED[i] - NAVY[i] for i in range(3)]
-    t = sum((p[i] - NAVY[i]) * d[i] for i in range(3)) / sum(x * x for x in d)
-    if t <= 0.03:
-        return False
-    err = max(abs(p[i] - (NAVY[i] + t * d[i])) for i in range(3))
-    return err < 14
+def rounded(im, size):
+    """[im] scaled to [size] with rounded corners, like a launcher tile."""
+    im = im.convert('RGBA').resize((size, size), Image.LANCZOS)
+    mask = Image.new('L', (size * 4, size * 4), 0)
+    ImageDraw.Draw(mask).rounded_rectangle(
+        (0, 0, size * 4 - 1, size * 4 - 1), radius=size * 4 * 0.22, fill=255)
+    im.putalpha(mask.resize((size, size), Image.LANCZOS))
+    return im
 
 
-removed = 0
-for y in range(h):
-    for x in range(w):
-        if on_guide(px[x, y]):
-            if px[x, y][:3] != NAVY:
-                removed += 1
-            px[x, y] = NAVY + (255,)
-print('guide pixels removed:', removed)
-im.save('assets/icons/adaptive_foreground_clean.png')
+fg = Image.open(f'{ICONS}/foreground.png').convert('RGBA')
+mono = Image.open(f'{ICONS}/monochrome.png').convert('RGBA')
+full = Image.open(f'{ICONS}/icon.png').convert('RGBA')
 
-# 108dp foreground per density.
 for dpi, scale in [('mdpi', 1), ('hdpi', 1.5), ('xhdpi', 2), ('xxhdpi', 3), ('xxxhdpi', 4)]:
-    s = round(108 * scale)
-    im.resize((s, s), Image.LANCZOS).save(f'{RES}/mipmap-{dpi}/ic_launcher_foreground.png')
-    # Legacy icon (Android < 8): the 72dp visible square, rounded preview.
-    legacy = Image.open('assets/icons/preview_rounded_square_128.png').convert('RGBA')
-    legacy.resize((round(48 * scale),) * 2, Image.LANCZOS).save(f'{RES}/mipmap-{dpi}/ic_launcher.png')
+    s = round(108 * scale)  # adaptive layers are 108dp
+    fg.resize((s, s), Image.LANCZOS).save(f'{RES}/mipmap-{dpi}/ic_launcher_foreground.png')
+    mono.resize((s, s), Image.LANCZOS).save(f'{RES}/mipmap-{dpi}/ic_launcher_monochrome.png')
+    # Legacy icon (Android < 8): 48dp rounded tile.
+    rounded(full, round(48 * scale)).save(f'{RES}/mipmap-{dpi}/ic_launcher.png')
     print(dpi, s)
+
+# Shown inside the app (About, licences) and in the README.
+rounded(full, 128).save(f'{ICONS}/app_icon_128.png')
+print('app_icon_128.png')

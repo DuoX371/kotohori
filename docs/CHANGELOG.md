@@ -9,6 +9,10 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Changed
+
+- New app icon, with a themed version for Android 13+ themed icons
+
 ### Fixed
 
 - "Playback error: Could not open codec" no longer stays on screen on some

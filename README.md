@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icons/preview_rounded_square_128.png" width="128" alt="Kotohori icon">
+  <img src="assets/icons/app_icon_128.png" width="128" alt="Kotohori icon">
 </p>
 
 <h1 align="center">Kotohori (言掘り)</h1>

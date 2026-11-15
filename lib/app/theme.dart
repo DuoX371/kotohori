@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// The app icon (rounded square), for showing inside the app.
-const appIconAsset = 'assets/icons/preview_rounded_square_128.png';
+const appIconAsset = 'assets/icons/app_icon_128.png';
 
 /// Kotohori's palette: a quiet dark "screening room" with one accent, gold —
 /// what you dig up (言掘り = word digging). Light mode keeps the gold, darker.
