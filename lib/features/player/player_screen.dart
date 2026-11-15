@@ -93,6 +93,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Timer? _hideTimer;
   String? _error;
+  var _errorAt = Duration.zero;
+  static const _errorClears = Duration(seconds: 1);
 
   /// In the mini player (Android picture-in-picture): video + subtitles only.
   var _pip = false;
@@ -214,10 +216,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         if (mounted) setState(() {});
       }),
       c.player.stream.height.listen((_) => _updatePip()),
+      c.player.stream.position.listen((pos) {
+        if (_error != null && (pos - _errorAt).abs() > _errorClears) {
+          setState(() => _error = null);
+        }
+      }),
     ]);
-    c.player.stream.error.listen(
-      (e) => mounted ? setState(() => _error = e) : null,
-    );
+    c.player.stream.error.listen((e) {
+      if (!mounted) return;
+      _errorAt = c.player.state.position;
+      setState(() => _error = e);
+    });
     c
         .open(
           widget.videoUri,
