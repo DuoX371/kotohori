@@ -9,6 +9,8 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-15
+
 ### Added
 
 - Double-tap the left or right side of the video to skip 5 seconds back or
@@ -42,6 +44,7 @@ First beta.
 - 🔔 **Notifications:** the bell walks you through installing a dictionary and
   connecting AnkiDroid, and tells you when a new version is out
 
-[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/DuoX371/kotohori/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/DuoX371/kotohori/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/DuoX371/kotohori/releases/tag/v0.1.0
