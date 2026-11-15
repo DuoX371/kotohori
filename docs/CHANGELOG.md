@@ -9,6 +9,8 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-16
+
 ### Changed
 
 - New app icon, with a themed version for Android 13+ themed icons
@@ -76,7 +78,8 @@ First beta.
 - 🔔 **Notifications:** the bell walks you through installing a dictionary and
   connecting AnkiDroid, and tells you when a new version is out
 
-[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/DuoX371/kotohori/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/DuoX371/kotohori/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/DuoX371/kotohori/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/DuoX371/kotohori/compare/v0.1.0...v0.1.1
