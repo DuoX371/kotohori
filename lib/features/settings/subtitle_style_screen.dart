@@ -119,25 +119,40 @@ class _Preview extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(subtitleStyleProvider);
+    // A shrunken copy of the whole landscape screen, so the text keeps the
+    // same proportion to the picture as in the player.
+    final m = MediaQuery.sizeOf(context);
+    final screen = Size(m.longestSide, m.shortestSide);
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: AspectRatio(
-        aspectRatio: 21 / 9,
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFBFD8EE), Color(0xFFF2E6C9), Color(0xFF8A9A6B)],
-            ),
-          ),
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-              child: SubtitleText(
-                'スバルのことも守ってあげなくちゃ。',
-                style: s,
-                highlight: const (7, 3),
+        aspectRatio: screen.aspectRatio,
+        child: FittedBox(
+          child: SizedBox.fromSize(
+            size: screen,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFBFD8EE),
+                    Color(0xFFF2E6C9),
+                    Color(0xFF8A9A6B),
+                  ],
+                ),
+              ),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  // Same margins as the player.
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: SubtitleText(
+                    'スバルのことも守ってあげなくちゃ。',
+                    style: s,
+                    highlight: const (7, 3),
+                  ),
+                ),
               ),
             ),
           ),
