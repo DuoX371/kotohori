@@ -134,6 +134,20 @@ void main() {
     });
   });
 
+  test('Anki copy keeps side-by-side chips apart without styles.css', () {
+    // Jitendex part-of-speech chips: adjacent spans, styled only by styles.css.
+    const json =
+        '[{"type":"structured-content","content":['
+        '{"tag":"span","data":{"code":"n"},"content":"noun"},'
+        '{"tag":"span","data":{"code":"adv"},"content":"adverb"}]}]';
+    String text(String html) => html.replaceAll(RegExp('<[^>]*>'), '');
+    expect(text(GlossaryRenderer().glossaryList(json)), 'nounadverb');
+    expect(
+      text(GlossaryRenderer(spaceInlineSiblings: true).glossaryList(json)),
+      'noun adverb',
+    );
+  });
+
   test(
     'Anki definition: all dictionaries or first only, with scoped styles',
     () async {
@@ -154,6 +168,11 @@ void main() {
         all,
         contains('[data-dictionary="Mini A"]'),
       ); // Mini A's styles.css, scoped
+
+      // Kotohori's own chips are styled inline (survive a stripped <style>)
+      // and spaced, so they never run into each other.
+      expect(all, contains('<span class="dict" style="'));
+      expect(all, contains('</span> '));
 
       final first = b.ankiDefinition(group, firstDictionaryOnly: true);
       expect(first, contains('Japan'));

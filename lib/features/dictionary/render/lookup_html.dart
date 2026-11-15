@@ -14,13 +14,19 @@ class LookupHtmlBuilder {
   final String mediaRoot;
   final _cssCache = <(int, String), String>{};
 
-  /// Definition HTML for a single entry; also used for the Anki definition field.
-  String entryHtml(TermEntry e) {
-    final r = GlossaryRenderer(mediaUrl: (path) => _dataUri(e.dict.id, path));
+  /// Definition HTML for a single entry. [forAnki]: chips are styled inline
+  /// and spaced apart, because some Anki screens drop the field's `<style>`.
+  String entryHtml(TermEntry e, {bool forAnki = false}) {
+    final r = GlossaryRenderer(
+      mediaUrl: (path) => _dataUri(e.dict.id, path),
+      spaceInlineSiblings: forAnki,
+    );
     final tags = e.term.definitionTags.split(' ').where((t) => t.isNotEmpty);
+    String chip(String cls, String text) => forAnki
+        ? '<span class="$cls" style="${cls == 'dict' ? _ankiDictChip : _ankiChip}">${escape(text)}</span>'
+        : '<span class="$cls">${escape(text)}</span>';
     return '<div class="entry" data-dictionary="${escape(e.dict.title)}">'
-        '<div class="entry-head"><span class="dict">${escape(e.dict.title)}</span>'
-        '${tags.map((t) => '<span class="tag">${escape(t)}</span>').join()}</div>'
+        '<div class="entry-head">${[chip('dict', e.dict.title), for (final t in tags) chip('tag', t)].join(forAnki ? ' ' : '')}</div>'
         '${r.glossaryList(e.term.glossary)}</div>';
   }
 
@@ -34,7 +40,7 @@ class LookupHtmlBuilder {
         : g.entries;
     final dicts = {for (final e in entries) e.dict.id: e.dict};
     final css = dicts.values.map(_scoped).join('\n');
-    return '<div class="kotohori-definition">${entries.map(entryHtml).join()}</div>'
+    return '<div class="kotohori-definition">${entries.map((e) => entryHtml(e, forAnki: true)).join()}</div>'
         '<style>$_ankiCss\n$css</style>';
   }
 
@@ -158,8 +164,11 @@ img { max-width:100%; }
 const _ankiCss = '''
 .kotohori-definition { text-align:left; }
 .kotohori-definition .entry { margin-top:6px; }
-.kotohori-definition .dict, .kotohori-definition .tag { display:inline-block; font-size:.75em; padding:1px 6px;
-  border-radius:4px; background:rgba(128,128,128,.2); margin:0 4px 4px 0; }
-.kotohori-definition .dict { font-weight:600; }
 .kotohori-definition .glossary-list { margin:4px 0 0; padding-left:1.4em; }
 ''';
+
+/// Chip look for the Anki copy, written on each chip (see [LookupHtmlBuilder.entryHtml]).
+const _ankiChip =
+    'display:inline-block;font-size:.75em;padding:1px 6px;border-radius:4px;'
+    'background:rgba(128,128,128,.2);margin:0 0 4px 0';
+const _ankiDictChip = '$_ankiChip;font-weight:600';

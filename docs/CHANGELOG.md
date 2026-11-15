@@ -9,6 +9,12 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Fixed
+
+- Dictionary tags on cards no longer run together ("nounadverb") on Anki
+  screens that drop the card's styling, such as AnkiDroid's card preview on
+  some phones
+
 ## [0.1.1] - 2026-11-13
 
 ### Fixed
