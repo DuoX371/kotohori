@@ -30,6 +30,14 @@ import 'tap_seeker.dart';
 bool pinchSnapsToFill(double start, double now) =>
     (now - start).abs() > 0.1 ? now > start : start > 0.5;
 
+/// Height of the black bar under a [w]×[h] video shown at [scale] (1 = fit) on
+/// [screen]; 0 when the picture reaches the bottom edge or the size is unknown.
+double letterboxBottom(Size screen, int? w, int? h, double scale) {
+  if (w == null || h == null || w == 0 || h == 0 || screen.isEmpty) return 0;
+  final fitHeight = (screen.width * h / w).clamp(0.0, screen.height);
+  return ((screen.height - fitHeight * scale) / 2).clamp(0.0, screen.height);
+}
+
 class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({
     super.key,
@@ -479,9 +487,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final wide = size.width > size.height;
     final panelWidth = size.width * 0.42;
     final panelHeight = size.height * 0.5;
+    // Sit on the picture, not on the black bar under it (16:9 video on a 16:10 tablet).
+    final s = c.player.state;
+    final bar = letterboxBottom(
+      size,
+      s.width,
+      s.height,
+      ref.watch(videoFillProvider) ? _fillScale(size) : 1,
+    );
     final subtitleBottom = (open && !wide)
         ? panelHeight + 16
-        : (_controls ? 120.0 : 24.0);
+        : (_controls ? 120.0 : bar + 24);
     final subtitleRight = (open && wide) ? panelWidth + 24 : 16.0;
     return Stack(
       fit: StackFit.expand,
@@ -565,34 +581,49 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               ),
             ),
           ),
-          if (open)
-            wide
-                ? Positioned(
-                    top: 8,
-                    right: 8,
-                    bottom: 8,
-                    width: panelWidth,
-                    child: SafeArea(
-                      child: LookupPanel(
-                        c,
-                        onAdd: _addCard,
-                        ankiChanged: _ankiChanged,
-                      ),
-                    ),
-                  )
-                : Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    height: panelHeight,
-                    child: LookupPanel(
-                      c,
-                      onAdd: _addCard,
-                      ankiChanged: _ankiChanged,
-                    ),
-                  ),
+          wide
+              ? Positioned(
+                  top: 8,
+                  right: 8,
+                  bottom: 8,
+                  width: panelWidth,
+                  child: SafeArea(child: _panel(open, const Offset(1.05, 0))),
+                )
+              : Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: panelHeight,
+                  child: _panel(open, const Offset(0, 1)),
+                ),
         ],
       ],
+    );
+  }
+
+  /// The lookup popup slides in from the edge it docks to ([from], in panel
+  /// sizes) and back out on close, still showing its last word as it goes.
+  Widget _panel(bool open, Offset from) {
+    final still = MediaQuery.disableAnimationsOf(context);
+    return AnimatedSwitcher(
+      duration: Duration(milliseconds: still ? 0 : 260),
+      reverseDuration: Duration(milliseconds: still ? 0 : 200),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (current, previous) =>
+          Stack(fit: StackFit.expand, children: [...previous, ?current]),
+      transitionBuilder: (child, t) => SlideTransition(
+        position: Tween(begin: from, end: Offset.zero).animate(t),
+        child: FadeTransition(opacity: t, child: child),
+      ),
+      child: open
+          ? LookupPanel(
+              key: const ValueKey('lookup'),
+              c,
+              onAdd: _addCard,
+              ankiChanged: _ankiChanged,
+            )
+          : const SizedBox.shrink(),
     );
   }
 
