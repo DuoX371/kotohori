@@ -23,6 +23,7 @@ Kotohori is built for one loop: **watch/read → tap → understand → mine**. 
 - **Play your own videos with subtitles**, straight from local files
 - **Subtitles out of sync?** Sync them automatically against the video's own subtitle track
 - **Keyboard support**: play, pause, skip between subtitle lines and replay a line without touching the screen (shortcuts below)
+- **Explain a line** (optional): one tap gives a translation, a word-by-word breakdown and the nuance of the subtitle on screen, using Google's Gemini with your own free API key
 
 ### 📖 Reader
 - 🚧 Currently work in progress
@@ -71,7 +72,8 @@ In the player, with a hardware keyboard:
 | ↓ or D | Next subtitle line |
 | R | Replay the current line |
 | S | Show / hide subtitles |
-| Esc | Close the word popup |
+| E | Explain the line on screen, or close the explanation (when Explain is on) |
+| Esc | Close the word popup or the explanation |
 
 ## 📂 Supported formats
 
@@ -89,6 +91,12 @@ your device. Kotohori only goes online to download dictionaries you choose (from
 their original sites), to fetch word audio from JapanesePod101 when you make a
 card, and to check GitHub for a newer version when it starts (you can turn this
 off in Settings).
+
+The optional **Explain** button is off by default. If you turn it on and add
+your own Gemini API key, pressing it sends the subtitle line on screen, a few
+lines around it and the video's name to Google's Gemini, and nothing is sent at
+any other time. On Gemini's free plan, Google may use what is sent to improve
+its products. Your key is stored encrypted on your device.
 
 ## 🙏 Credits
 

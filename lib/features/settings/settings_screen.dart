@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../anki/anki_settings_screen.dart';
 import '../dictionary/ui/installed_screen.dart';
 import '../dictionary/ui/recommended_screen.dart';
+import '../explain/explain_settings_screen.dart';
 import '../update/update_check.dart';
 import '../update/update_snack.dart';
 import 'appearance_settings.dart';
@@ -69,6 +70,17 @@ class SettingsScreen extends ConsumerWidget {
                 'Subtitle appearance',
                 'Size, colour, outline or box',
                 const SubtitleStyleScreen(),
+              ),
+            ],
+          ),
+          Section(
+            title: 'AI explain',
+            children: [
+              link(
+                Icons.auto_awesome_outlined,
+                'Explain',
+                'Configure Gemini AI and enable explains',
+                const ExplainSettingsScreen(),
               ),
             ],
           ),

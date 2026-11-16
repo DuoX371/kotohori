@@ -12,6 +12,9 @@ import '../anki/anki_settings.dart';
 import '../anki/card_editor_screen.dart';
 import '../dictionary/ui/providers.dart'
     show appPathsProvider, htmlBuilderProvider, lookupProvider;
+import '../explain/explain_request.dart';
+import '../explain/explain_settings.dart';
+import '../explain/explain_settings_screen.dart';
 import '../home/display_name.dart';
 import '../settings/player_settings.dart';
 import '../subtitles/auto_sync.dart';
@@ -19,6 +22,7 @@ import '../subtitles/cue.dart';
 import '../subtitles/embedded_subtitles.dart';
 import 'copy_scene.dart';
 import 'cue_list.dart';
+import 'explain_panel.dart';
 import 'lookup_panel.dart';
 import 'player_controller.dart';
 import 'player_options_sheet.dart';
@@ -74,9 +78,69 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   late final c = PlayerController(
     widget.cues,
     lookup: ref.read(lookupProvider).lookup,
+    explain: _askAi,
     pauseOnLookup: () => ref.read(pauseOnLookupProvider),
   );
   final _scaffold = GlobalKey<ScaffoldState>();
+
+  /// Sends the lines to Gemini with the key in settings (read now: it can change mid-video).
+  Stream<String> _askAi(ExplainRequest r) async* {
+    final client = await ref.read(geminiClientProvider(r.model).future);
+    final prompt = explainPrompt(r);
+    yield* client.ask(system: prompt.system, user: prompt.user);
+  }
+
+  /// ✨ in the top bar: explains the subtitle line on screen.
+  Future<void> _explain() async {
+    final problem = explainSetupProblem(
+      apiKey: await ref.read(explainApiKeyProvider.future),
+    );
+    if (!mounted) return;
+    if (problem != null) {
+      final go = await showDialog<bool>(
+        context: _scaffold.currentContext!,
+        builder: (context) => AlertDialog(
+          title: const Text('Set up Explain'),
+          content: Text(problem),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Not now'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Open settings'),
+            ),
+          ],
+        ),
+      );
+      if (go == true) _openExplainSettings();
+      return;
+    }
+    final targets = c.explainTargets;
+    if (targets.isEmpty) {
+      ScaffoldMessenger.of(_scaffold.currentContext!)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('No subtitle line to explain here')),
+        );
+      return;
+    }
+    await c.openExplain(
+      targets,
+      title: displayName(widget.title),
+      model: ref.read(explainModelProvider),
+    );
+  }
+
+  void _openExplainSettings() {
+    if (!mounted) return;
+    c.player.pause();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const ExplainSettingsScreen()),
+    );
+  }
+
   var _controls = true;
   var _landscape = true;
 
@@ -116,6 +180,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (!mounted) return;
     if (inPip) {
       if (c.lookup.isOpen) c.closeLookup();
+      if (c.explain.isOpen) c.closeExplain();
       _hideTimer?.cancel();
     }
     setState(() {
@@ -236,6 +301,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         .then((_) => _poke());
     // First frame a few seconds in (past black/logos), then frame + resume point every 30 s.
     c.lookup.addListener(_refocusOnClose);
+    c.explain.addListener(_refocusOnClose);
     _thumbTimer = Timer(const Duration(seconds: 8), () {
       _grabThumbnail();
       _thumbTimer = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -248,12 +314,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// However the popup closes (X, Esc, tapping the video), keyboard focus may
   /// still sit on its removed WebView, so the next Space would be lost.
   void _refocusOnClose() {
-    if (!c.lookup.isOpen) _keys.requestFocus();
+    if (!c.lookup.isOpen && !c.explain.isOpen) _keys.requestFocus();
   }
 
   @override
   void dispose() {
     c.lookup.removeListener(_refocusOnClose);
+    c.explain.removeListener(_refocusOnClose);
     _save();
     for (final s in _pipSubs) {
       s.cancel();
@@ -317,7 +384,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     }
     // The middle (and closing the popup) reacts at once; on the sides a single
     // tap waits briefly in case it becomes a double tap.
-    if (side == TapSide.middle || c.lookup.isOpen) return _toggleControls();
+    if (side == TapSide.middle || c.lookup.isOpen || c.explain.isOpen) {
+      return _toggleControls();
+    }
     _singleTap = Timer(TapSeeker.doubleTap, () {
       if (mounted) _toggleControls();
     });
@@ -328,6 +397,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (c.lookup.isOpen) {
       return c.closeLookup(); // tapping the video dismisses the popup first
     }
+    if (c.explain.isOpen) return c.closeExplain();
     if (_controls) {
       _hideTimer?.cancel();
       setState(() => _controls = false);
@@ -487,7 +557,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       LogicalKeyboardKey.arrowDown || LogicalKeyboardKey.keyD => c.nextCue,
       LogicalKeyboardKey.keyR when !repeat => c.replayCue,
       LogicalKeyboardKey.keyS when !repeat => c.toggleSubtitles,
+      LogicalKeyboardKey.keyE
+          when !repeat && ref.read(explainEnabledProvider) =>
+        c.explain.isOpen ? c.closeExplain : _explain,
       LogicalKeyboardKey.escape when c.lookup.isOpen => c.closeLookup,
+      LogicalKeyboardKey.escape when c.explain.isOpen => c.closeExplain,
       _ => null,
     };
     if (action == null) return KeyEventResult.ignored;
@@ -513,7 +587,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           backgroundColor: Colors.black,
           endDrawer: Drawer(child: SafeArea(child: CueList(c))),
           body: ListenableBuilder(
-            listenable: c.lookup,
+            listenable: Listenable.merge([c.lookup, c.explain]),
             builder: (context, _) => _body(context),
           ),
         ),
@@ -524,7 +598,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   Widget _body(BuildContext context) {
     // Popup: right side in landscape, bottom half in portrait. Subtitles move out of its way.
     final size = MediaQuery.sizeOf(context);
-    final open = c.lookup.isOpen;
+    final open = c.lookup.isOpen || c.explain.isOpen;
     final wide = size.width > size.height;
     final panelWidth = size.width * 0.42;
     final panelHeight = size.height * 0.5;
@@ -657,7 +731,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         position: Tween(begin: from, end: Offset.zero).animate(t),
         child: FadeTransition(opacity: t, child: child),
       ),
-      child: open
+      child: c.explain.isOpen
+          ? ExplainPanel(
+              key: const ValueKey('explain'),
+              c,
+              onOpenSettings: _openExplainSettings,
+            )
+          : c.lookup.isOpen
           ? LookupPanel(
               key: const ValueKey('lookup'),
               c,
@@ -690,6 +770,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (ref.watch(explainEnabledProvider))
+            IconButton(
+              tooltip: 'Explain this line',
+              color: Colors.white,
+              icon: const Icon(Icons.auto_awesome_outlined),
+              onPressed: _act(_explain),
+            ),
           IconButton(
             tooltip: 'Copy scene',
             color: Colors.white,
