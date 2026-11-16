@@ -9,6 +9,14 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Added
+
+- Explain: a ✨ button in the player that pauses the video and explains the
+  subtitle line on screen (translation, word-by-word breakdown, nuance) using
+  Google's Gemini. Off by default; turn it on in Settings → AI explain with
+  your own Gemini API key (free to create), and choose between faster and
+  more accurate models.
+
 ## [0.1.4] - 2026-11-16
 
 ### Changed

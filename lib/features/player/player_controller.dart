@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import '../explain/explain_request.dart';
+import '../explain/explain_session.dart';
 import '../subtitles/auto_sync.dart';
 import '../subtitles/cue.dart';
 import '../subtitles/timeline.dart';
@@ -24,9 +26,11 @@ class PlayerController extends ChangeNotifier {
   PlayerController(
     this.originalCues, {
     required LookupFn lookup,
+    required ExplainFn explain,
     required this.pauseOnLookup,
   }) : timeline = SubtitleTimeline(originalCues),
-       lookup = LookupSession(lookup) {
+       lookup = LookupSession(lookup),
+       explain = ExplainSession(explain) {
     _sub = player.stream.position.listen(_refresh);
   }
 
@@ -40,9 +44,12 @@ class PlayerController extends ChangeNotifier {
   /// Auto-sync result in effect (empty = lines at their file times).
   List<SyncSegment> sync = const [];
   final LookupSession lookup;
+  final ExplainSession explain;
   final bool Function() pauseOnLookup;
   late final StreamSubscription<Duration> _sub;
-  var _resumeAfterLookup = false;
+
+  /// The open popup (dictionary or Explain) paused the video: closing resumes it.
+  var _resumeOnClose = false;
 
   static const offsetStep = Duration(milliseconds: 100);
 
@@ -136,6 +143,7 @@ class PlayerController extends ChangeNotifier {
   void setSync(List<SyncSegment> segments, {Duration offset = Duration.zero}) {
     sync = segments;
     lookup.close(); // its highlight points at line indices that change
+    explain.close();
     timeline.cues = applySync(originalCues, segments);
     _setOffset(offset);
   }
@@ -146,8 +154,9 @@ class PlayerController extends ChangeNotifier {
   }
 
   Future<void> tapCharacter(Cue cue, int index) async {
+    explain.close(); // one popup at a time; a video it paused stays paused
     if (pauseOnLookup() && player.state.playing) {
-      _resumeAfterLookup = true;
+      _resumeOnClose = true;
       await player.pause();
     }
     await lookup.tap(cue, index);
@@ -156,16 +165,55 @@ class PlayerController extends ChangeNotifier {
   /// Closes the popup; resumes playback only if the lookup paused it.
   void closeLookup() {
     lookup.close();
-    if (_resumeAfterLookup) {
-      _resumeAfterLookup = false;
-      player.play();
+    _resume();
+  }
+
+  /// The lines Explain would explain now: those on screen, else the last one
+  /// shown (the video may sit in the silence after it). Empty before the first.
+  List<Cue> get explainTargets {
+    if (active.isNotEmpty) return active;
+    final last = timeline.currentAt(position);
+    return [?last];
+  }
+
+  /// Pauses and opens the Explain panel on [targets] (from [explainTargets]).
+  Future<void> openExplain(
+    List<Cue> targets, {
+    required String title,
+    required String model,
+  }) async {
+    lookup.close();
+    if (player.state.playing) {
+      _resumeOnClose = true;
+      await player.pause();
     }
+    explain.start(
+      ExplainRequest(
+        title: title,
+        lines: explainContext(timeline.cues, targets),
+        targets: targets,
+        model: model,
+      ),
+    );
+  }
+
+  /// Closes the panel; resumes playback only if a popup paused it.
+  void closeExplain() {
+    explain.close();
+    _resume();
+  }
+
+  void _resume() {
+    if (!_resumeOnClose) return;
+    _resumeOnClose = false;
+    player.play();
   }
 
   @override
   void dispose() {
     _sub.cancel();
     lookup.dispose();
+    explain.dispose();
     player.dispose();
     super.dispose();
   }
