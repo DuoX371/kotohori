@@ -9,6 +9,8 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-11-17
+
 ### Added
 
 - Book icon in word lookup now opens AnkiDroid's card browser to existing cards of the word in other decks
@@ -95,7 +97,8 @@ First beta.
 - 🔔 **Notifications:** the bell walks you through installing a dictionary and
   connecting AnkiDroid, and tells you when a new version is out
 
-[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/DuoX371/kotohori/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/DuoX371/kotohori/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/DuoX371/kotohori/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/DuoX371/kotohori/compare/v0.1.2...v0.1.3
