@@ -95,6 +95,38 @@ class PlayerController extends ChangeNotifier {
     _refresh(timeline.startOf(cue));
   }
 
+  /// The picture for a card about [cue] (JPEG). Normally the frame on screen;
+  /// but if the video has moved off that line since the word was tapped, a
+  /// frame from inside the line, after which the video returns to where it was.
+  Future<Uint8List?> cardFrame(Cue cue) async {
+    final back = position;
+    final at = timeline.cardFrameTime(cue, back);
+    if (at == null) return player.screenshot(format: 'image/jpeg');
+    try {
+      await player.pause();
+      await player.seek(at);
+      await _seekFinished();
+      return await player.screenshot(format: 'image/jpeg');
+    } finally {
+      await player.seek(back);
+    }
+  }
+
+  /// Waits until a seek has really put its frame on screen. The position is
+  /// no guide: mpv reports the target at once, long before the frame is there
+  /// (a screenshot then still shows the old scene). Its "seeking" flag is.
+  Future<void> _seekFinished() async {
+    const step = Duration(milliseconds: 40);
+    final native = player.platform;
+    if (native is! NativePlayer) return Future<void>.delayed(step * 25);
+    final waited = Stopwatch()..start();
+    do {
+      await Future<void>.delayed(step);
+    } while (await native.getProperty('seeking') == 'yes' &&
+        waited.elapsed < const Duration(seconds: 8));
+    await Future<void>.delayed(step * 3); // the frame reaches the output
+  }
+
   Future<void> nextCue() => seekToCue(timeline.nextAfter(position));
   Future<void> previousCue() => seekToCue(timeline.previousBefore(position));
   Future<void> replayCue() async {

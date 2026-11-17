@@ -94,7 +94,7 @@ class CardExporter {
   /// Returns the draft at once with its text; screenshot, sentence audio and
   /// word audio are made in parallel and filled in as each finishes. Media
   /// failures don't block the card: they become warnings, the field stays empty.
-  /// [screenshot] is called immediately, so the frame is the one on screen now.
+  /// [screenshot] is called immediately.
   CardDraft prepare({
     required AnkiSettings settings,
     required String cueText,

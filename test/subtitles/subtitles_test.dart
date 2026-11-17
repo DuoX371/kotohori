@@ -190,5 +190,27 @@ void main() {
       s.offset = ms(-1000);
       expect(s.activeAt(ms(100)).single.index, 0);
     });
+
+    test('card picture: the frame on screen, or one from inside the line', () {
+      // A line shown from 10 s to 14 s (with a +1 s offset: 11 s to 15 s).
+      final cue = Cue(0, ms(10000), ms(14000), 'x');
+      final s = SubtitleTimeline([cue]);
+      expect(s.cardFrameTime(cue, ms(10000)), isNull); // on the line
+      expect(s.cardFrameTime(cue, ms(13999)), isNull);
+      expect(s.cardFrameTime(cue, ms(9950)), isNull); // a frame early counts
+      // The video ran on: a late frame of the line.
+      expect(s.cardFrameTime(cue, ms(14000)), ms(13750));
+      expect(s.cardFrameTime(cue, ms(60000)), ms(13750));
+      // The video is before the line: an early frame of it.
+      expect(s.cardFrameTime(cue, ms(2000)), ms(10250));
+      s.offset = ms(1000);
+      expect(s.cardFrameTime(cue, ms(14500)), isNull);
+      expect(s.cardFrameTime(cue, ms(20000)), ms(14750));
+      // A very short line: its middle, never outside it.
+      final blink = Cue(0, ms(5000), ms(5200), 'y');
+      final t = SubtitleTimeline([blink]);
+      expect(t.cardFrameTime(blink, ms(9000)), ms(5100));
+      expect(t.cardFrameTime(blink, ms(0)), ms(5100));
+    });
   });
 }

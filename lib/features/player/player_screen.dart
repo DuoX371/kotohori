@@ -503,7 +503,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             widget.title,
           ), // "Show - 02", not the release file name
           videoSource: widget.videoUri,
-          screenshot: () => c.player.screenshot(format: 'image/jpeg'),
+          screenshot: () => c.cardFrame(cue),
         );
     draft.existingDecks = existingDecks;
     await Navigator.of(context).push(

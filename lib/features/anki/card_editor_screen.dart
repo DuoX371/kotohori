@@ -112,9 +112,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Already in Anki'),
-          content: Text(
-            'A card for "${e.word}" already exists in Anki.',
-          ),
+          content: Text('A card for "${e.word}" already exists in Anki.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -268,7 +266,14 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
             if (_editHtml)
               _field('Definition (HTML)', _definition, maxLines: 12)
             else
-              SizedBox(height: 260, child: appWebView(_preview)),
+              // Keyed: rows above it come and go (warnings). Unkeyed, the list
+              // would rebuild this native view in a new slot while the old one
+              // still holds it, which crashes the app.
+              SizedBox(
+                key: const ValueKey('definition-preview'),
+                height: 260,
+                child: appWebView(_preview),
+              ),
             const SizedBox(height: 12),
             _field('Source', _source),
           ],

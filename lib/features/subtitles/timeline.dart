@@ -43,6 +43,23 @@ class SubtitleTimeline {
     return cues[i > 0 ? i - 1 : 0];
   }
 
+  /// How far inside a line a card's picture is taken when the video is not
+  /// on that line any more (or not yet): clear of the cut at either edge.
+  static const frameMargin = Duration(milliseconds: 250);
+
+  /// Where to take the picture for a card about [cue] while the video is at
+  /// [pos]. Null: [pos] is on the line, so the frame on screen is right.
+  /// Otherwise a moment inside the line: near its end when the video has
+  /// moved past it, near its start when the video hasn't reached it.
+  Duration? cardFrameTime(Cue cue, Duration pos) {
+    final start = startOf(cue), end = endOf(cue);
+    if (start <= pos + tolerance && pos < end) return null;
+    final half = (end - start) ~/ 2;
+    final margin = half < frameMargin ? half : frameMargin;
+    final at = pos >= end ? end - margin : start + margin;
+    return at < Duration.zero ? Duration.zero : at;
+  }
+
   /// Offset that makes [cue] start exactly at [pos] ("this line starts now").
   Duration offsetToStart(Cue cue, Duration pos) => pos - cue.start;
 
