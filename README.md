@@ -89,8 +89,7 @@ In the player, with a hardware keyboard:
 No account, no analytics, no tracking. Your videos, subtitles and cards stay on
 your device. Kotohori only goes online to download dictionaries you choose (from
 their original sites), to fetch word audio from JapanesePod101 when you make a
-card, and to check GitHub for a newer version when it starts (you can turn this
-off in Settings).
+card, and to check GitHub for a newer version when it starts.
 
 The optional **Explain** button is off by default. If you turn it on and add
 your own Gemini API key, pressing it sends the subtitle line on screen, a few

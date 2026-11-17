@@ -6,6 +6,9 @@ import '../features/home/home_screen.dart';
 import '../features/notices/notices.dart';
 import '../features/update/update_check.dart';
 import '../features/update/update_snack.dart';
+import '../features/whats_new/changelog.dart';
+import '../features/whats_new/whats_new.dart';
+import '../features/whats_new/whats_new_dialog.dart';
 
 /// Top-level sections: Player (videos), Reader (light novels, not built yet)
 /// and Dictionary (look up any word). Bottom bar on phones, a rail on wide screens.
@@ -28,7 +31,22 @@ class _AppShellState extends ConsumerState<AppShell> {
   void initState() {
     super.initState();
     _lifecycle;
-    if (ref.read(checkOnLaunchProvider)) _checkForUpdate();
+    _checkForUpdate();
+    ref.listenManual(whatsNewProvider, (_, news) {
+      _announce(news);
+    }, fireImmediately: true);
+  }
+
+  var _announced = false;
+
+  Future<void> _announce(List<ChangelogRelease> news) async {
+    final installed = ref.read(appVersionProvider).value;
+    if (_announced || news.isEmpty || installed == null) return;
+    _announced = true;
+    await WidgetsBinding.instance.endOfFrame; // not during build
+    if (!mounted) return;
+    await ref.read(whatsNewSeenProvider.notifier).set(installed);
+    if (mounted) await showWhatsNew(context, news);
   }
 
   @override
@@ -37,13 +55,14 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.dispose();
   }
 
-  /// Quiet: only speaks up when there is a newer release (offline etc. is ignored).
+  /// On every start. Quiet unless there is a newer release (offline etc. is
+  /// ignored); then one popup, and the notice stays under the bell.
   Future<void> _checkForUpdate() async {
     try {
       final r = await ref.read(updateCheckProvider)();
       if (r == null || !mounted) return;
-      ref.read(availableUpdateProvider.notifier).set(r); // stays under the bell
-      showUpdateSnack(context, r);
+      ref.read(availableUpdateProvider.notifier).set(r);
+      await showUpdateDialog(context, r);
     } on Object catch (_) {}
   }
 

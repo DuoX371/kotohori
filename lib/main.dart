@@ -15,6 +15,7 @@ import 'features/dictionary/data/db.dart';
 import 'features/dictionary/data/dictionary_repo.dart';
 import 'features/dictionary/ui/providers.dart';
 import 'features/settings/appearance_settings.dart';
+import 'features/whats_new/whats_new.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +39,15 @@ Future<void> main() async {
   // would otherwise race this connection to create it, and one would fail.
   await db.customSelect('SELECT 1').get();
   final prefs = await SharedPreferences.getInstance();
+  if (prefs.getKeys().isEmpty) {
+    try {
+      final version = await const MethodChannel('kotohori/app')
+          .invokeMethod<String>('version');
+      if (version != null) await prefs.setString(WhatsNewSeen.key, version);
+    } on Object {
+      // Not worth failing startup for: the installed version's notes show once.
+    }
+  }
 
   // Finish deletes / drop half-imports interrupted by a previous app kill.
   DictionaryRepo(

@@ -17,6 +17,7 @@ new version and date, and start a fresh **Unreleased** above it.
 - Keyboard shortcuts such as Space work straight away after closing the word popup
 - Fixed already mined cards not showing as already mined when using a different note type
 - Tapping link niside dictionary popup now looks up word instead of popup white blank screen.
+- Dictionary page light mode was showing dark background
 
 ## [0.1.5] - 2026-11-17
 

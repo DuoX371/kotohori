@@ -74,6 +74,7 @@ flutter:
     - assets/catalog.json
     - assets/fonts/OFL.txt
     - assets/icons/app_icon_128.png
+    - docs/CHANGELOG.md
 
   fonts:
     # Headings and the 言掘り wordmark (SIL OFL 1.1, see assets/fonts/OFL.txt).

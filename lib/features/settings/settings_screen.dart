@@ -143,13 +143,6 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 onTap: () => _checkForUpdates(context, ref),
               ),
-              SwitchListTile(
-                secondary: const Icon(Icons.update),
-                title: const Text('Check when Kotohori starts'),
-                subtitle: const Text('Asks GitHub for the latest release'),
-                value: ref.watch(checkOnLaunchProvider),
-                onChanged: ref.read(checkOnLaunchProvider.notifier).set,
-              ),
               ListTile(
                 leading: const Icon(Icons.info_outline),
                 title: const Text('Licenses'),

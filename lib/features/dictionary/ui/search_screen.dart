@@ -5,7 +5,6 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../platform/web_view.dart';
 
-import '../../settings/appearance_settings.dart';
 import '../../settings/settings_screen.dart';
 import '../lookup/lookup.dart';
 import '../render/dictionary_link.dart';
@@ -43,16 +42,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   var _matched = 0;
   var _query = '';
 
+  LookupResult? _result;
+  bool? _drawnDark;
+
   @override
-  void initState() {
-    super.initState();
-    _web.loadHtmlString(
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    if (dark != _drawnDark) _draw(dark);
+  }
+
+  Future<void> _draw(bool dark) {
+    _drawnDark = dark;
+    return _web.loadHtmlString(
       ref
           .read(htmlBuilderProvider)
           .page(
-            LookupResult.empty,
-            emptyMessage: 'Type Japanese text to look up',
-            dark: appIsDark(ref),
+            _result ?? LookupResult.empty,
+            emptyMessage: _result == null
+                ? 'Type Japanese text to look up'
+                : ref.read(emptyLookupMessageProvider),
+            dark: dark,
           ),
       baseUrl: dictionaryPageBase,
     );
@@ -64,17 +74,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     setState(() {
       _query = q;
       _matched = result.matchedLength;
+      _result = result;
     });
-    await _web.loadHtmlString(
-      ref
-          .read(htmlBuilderProvider)
-          .page(
-            result,
-            emptyMessage: ref.read(emptyLookupMessageProvider),
-            dark: appIsDark(ref),
-          ),
-      baseUrl: dictionaryPageBase,
-    );
+    await _draw(Theme.of(context).brightness == Brightness.dark);
   }
 
   @override

@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../dictionary/ui/providers.dart' show dioProvider, prefsProvider;
+import '../dictionary/ui/providers.dart' show dioProvider;
 
 /// Where releases are published (GitHub Releases).
 const releasesRepo = 'DuoX371/kotohori';
@@ -63,23 +63,6 @@ final updateCheckProvider = Provider(
         ref.read(dioProvider),
         await ref.read(appVersionProvider.future),
       ),
-);
-
-/// "Check for updates when Kotohori starts" (on by default).
-class CheckOnLaunch extends Notifier<bool> {
-  static const _key = 'updates.checkOnLaunch';
-
-  @override
-  bool build() => ref.watch(prefsProvider).getBool(_key) ?? true;
-
-  Future<void> set(bool on) async {
-    state = on;
-    await ref.read(prefsProvider).setBool(_key, on);
-  }
-}
-
-final checkOnLaunchProvider = NotifierProvider<CheckOnLaunch, bool>(
-  CheckOnLaunch.new,
 );
 
 /// A newer release found by the launch check (shown under the bell).
