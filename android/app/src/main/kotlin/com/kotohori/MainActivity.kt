@@ -136,6 +136,26 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    /**
+     * Same goal, for focus lost while the window stays in front. A WebView popup that
+     * was touched (say, ＋ in the word popup) holds key focus; when Flutter takes it
+     * away (the card editor opens, the popup closes) Android leaves nothing focused,
+     * and the next key press would be used up choosing a view. Hand focus straight
+     * back to the Flutter view instead.
+     */
+    private val refocusFlutterView =
+        android.view.ViewTreeObserver.OnGlobalFocusChangeListener { _, newFocus ->
+            if (newFocus != null) return@OnGlobalFocusChangeListener
+            val flutterView = findViewById<android.view.View>(FLUTTER_VIEW_ID)
+            // After the current focus change has finished.
+            flutterView?.post { if (currentFocus == null) flutterView.requestFocus() }
+        }
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener(refocusFlutterView)
+    }
+
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         runCatching { unregisterReceiver(pipReceiver) }
         super.cleanUpFlutterEngine(flutterEngine)

@@ -9,15 +9,21 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Added
+
+- Book icon in word lookup now opens AnkiDroid's card browser to existing cards of the word in other decks
+
+### Fixed
+- Keyboard shortcuts such as Space work straight away after closing the word popup
+- Fixed already mined cards not showing as already mined when using a different note type
+- Tapping link niside dictionary popup now looks up word instead of popup white blank screen.
+<!-- - Tapping a link inside a dictionary entry (such as "→ 倒す") now looks that word up instead of turning the popup blank white, with a back arrow to return -->
+
 ## [0.1.5] - 2026-11-17
 
 ### Added
 
-- Explain: a ✨ button in the player that pauses the video and explains the
-  subtitle line on screen (translation, word-by-word breakdown, nuance) using
-  Google's Gemini. Off by default; turn it on in Settings → AI explain with
-  your own Gemini API key (free to create), and choose between faster and
-  more accurate models.
+- Explain button. Translate the current subtitle line with context using Google's Gemini. Gemini API key required (Free to create). Choose between faster and more accurate models
 
 ## [0.1.4] - 2026-11-16
 

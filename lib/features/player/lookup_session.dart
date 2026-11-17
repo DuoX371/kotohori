@@ -18,10 +18,37 @@ class LookupSession extends ChangeNotifier {
   /// Null while the popup is closed.
   LookupResult? result;
 
+  /// Results left behind by following links inside the popup, oldest first.
+  final _trail = <LookupResult>[];
+
+  bool get followedLink => _trail.isNotEmpty;
+
   bool get isOpen => result != null;
+
+  /// Shows [text] instead: a cross-reference tapped inside the popup ("→ 倒す").
+  /// The highlight stays on the subtitle word that led here; [back] returns.
+  Future<void> follow(String text) async {
+    final from = result;
+    if (from == null) return;
+    final id = ++_request;
+    final r = await _lookup(text, 0);
+    if (id != _request) return; // superseded by a newer tap or by close()
+    _trail.add(from);
+    result = r;
+    notifyListeners();
+  }
+
+  /// Returns to the entry a link was followed from. Does nothing otherwise.
+  void back() {
+    if (_trail.isEmpty) return;
+    _request++;
+    result = _trail.removeLast();
+    notifyListeners();
+  }
 
   Future<void> tap(Cue cue, int index) async {
     final id = ++_request;
+    _trail.clear();
     highlight = (cue.index, index, 1);
     notifyListeners();
     final r = await _lookup(cue.text, index);
@@ -35,6 +62,7 @@ class LookupSession extends ChangeNotifier {
     _request++;
     result = null;
     highlight = null;
+    _trail.clear();
     notifyListeners();
   }
 }

@@ -312,8 +312,10 @@ class CardExporter {
     );
   }
 
-  /// Anki search for notes of [model] whose Word field is [word]; null when no
-  /// field holds the word (then duplicates can't be told apart).
+  /// Anki search for notes whose Word field is [word]; null when no field of
+  /// [model] holds the word (then duplicates can't be told apart). Not limited
+  /// to [model]: a word mined earlier with another note type (say, on a PC)
+  /// counts too, as long as that type's field has the same name.
   static String? duplicateSearch(AnkiModel model, AnkiSettings s, String word) {
     final wordField = s.fieldMap.entries
         .where((e) => e.value == CardSource.word)
@@ -324,7 +326,7 @@ class CardExporter {
         !model.fields.contains(wordField)) {
       return null;
     }
-    return '"note:${ankiSearchEscape(model.name)}" "${ankiSearchEscape(wordField)}:${ankiSearchEscape(word)}"';
+    return '"${ankiSearchEscape(wordField)}:${ankiSearchEscape(word)}"';
   }
 
   /// Words that already have a card (same check as [send]) → the decks those
@@ -353,6 +355,27 @@ class CardExporter {
       return found;
     } on AnkiException {
       return {};
+    }
+  }
+
+  /// A link that opens AnkiDroid's card browser on the cards [wordsInAnki]
+  /// found for [word]; null when Anki isn't set up enough to search. AnkiDroid
+  /// lists them only if its browser is showing all decks (or the right one).
+  Future<Uri?> browseUri(String word, AnkiSettings s) async {
+    try {
+      final model = (await anki.models())
+          .where((m) => m.id == s.modelId)
+          .firstOrNull;
+      final search = model == null ? null : duplicateSearch(model, s, word);
+      if (search == null) return null;
+      return Uri(
+        scheme: 'anki',
+        host: 'x-callback-url',
+        path: '/browser',
+        queryParameters: {'search': search},
+      );
+    } on AnkiException {
+      return null;
     }
   }
 

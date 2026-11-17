@@ -113,7 +113,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         builder: (ctx) => AlertDialog(
           title: const Text('Already in Anki'),
           content: Text(
-            'A card for "${e.word}" already exists in this note type.',
+            'A card for "${e.word}" already exists in Anki.',
           ),
           actions: [
             TextButton(

@@ -475,7 +475,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       return;
     }
     final group = result.groups[groupIndex];
-    final (cueIndex, start, _) = h;
+    final (cueIndex, start, highlighted) = h;
     final cue = c.timeline.cues[cueIndex];
     final settings = ref.read(ankiSettingsProvider);
     c.player.pause();
@@ -485,7 +485,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           settings: settings,
           cueText: cue.text,
           matchStart: start,
-          matchLength: group.matchedLength,
+          matchLength: c.lookup.followedLink
+              ? highlighted
+              : group.matchedLength,
           cueStart: cue.start,
           cueEnd: cue.end,
           subtitleOffset: c.timeline.offset,

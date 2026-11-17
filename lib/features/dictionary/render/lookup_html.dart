@@ -153,8 +153,8 @@ rt { font-size:.5em; color:var(--muted); }
 img { max-width:100%; }
 .add { float:right; font-size:1.3em; line-height:1; width:2em; height:2em; border:0; border-radius:50%;
   background:var(--chip); color:var(--fg); margin:4px 0 0 8px; }
-/* Already in Anki: still tappable (adds another card), just marked. */
-.add.in-anki { background:transparent; border:1.5px solid #c9a24a; color:#c9a24a; font-size:1.05em;
+/* Already in Anki: a book beside ＋ that opens the cards in AnkiDroid. */
+.add.in-anki { background:transparent; border:1.5px solid #c9a24a; color:#c9a24a; font-size:1.05em; width:2.476em; height:2.476em;
   display:inline-flex; align-items:center; justify-content:center; }
 .in-anki-note { color:#b08a35; font-size:0.85em; margin:2px 0 4px; display:flex; gap:6px; align-items:center; }
 ''';

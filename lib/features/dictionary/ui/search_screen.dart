@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../platform/web_view.dart';
@@ -7,6 +8,7 @@ import '../../../platform/web_view.dart';
 import '../../settings/appearance_settings.dart';
 import '../../settings/settings_screen.dart';
 import '../lookup/lookup.dart';
+import '../render/dictionary_link.dart';
 import 'providers.dart';
 import '../../notices/notices_button.dart';
 
@@ -20,7 +22,24 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _text = TextEditingController();
   // JavaScript stays disabled (default): the page is static HTML built from dictionary data.
-  final _web = WebViewController();
+  late final _web = WebViewController()
+    ..setNavigationDelegate(
+      NavigationDelegate(
+        // Only pages we build are shown: a followed link would go blank.
+        onNavigationRequest: (request) {
+          final link = dictionaryLink(request.url);
+          if (link.query case final text?) {
+            _text.text = text;
+            _search(text);
+          } else if (isOwnPage(request.url)) {
+            return NavigationDecision.navigate;
+          } else if (link.web case final uri?) {
+            launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+          return NavigationDecision.prevent;
+        },
+      ),
+    );
   var _matched = 0;
   var _query = '';
 
@@ -35,6 +54,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             emptyMessage: 'Type Japanese text to look up',
             dark: appIsDark(ref),
           ),
+      baseUrl: dictionaryPageBase,
     );
   }
 
@@ -53,6 +73,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             emptyMessage: ref.read(emptyLookupMessageProvider),
             dark: appIsDark(ref),
           ),
+      baseUrl: dictionaryPageBase,
     );
   }
 
