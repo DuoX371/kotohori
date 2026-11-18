@@ -190,6 +190,9 @@
       s.textContent = css;
       layout();
       settle(function () {
+        // Laid out the reader's way: the page may show now (see hidePage).
+        var hide = document.getElementById('kh-hide');
+        if (hide) hide.remove();
         countPages();
         state.ready = true;
         if (at === 'end') show(state.pages - 1);
