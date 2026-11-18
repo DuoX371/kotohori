@@ -13,7 +13,7 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ### Fixed
 
-- Fixed some Android devices states not configuration causing player to crash
+- Fixed some Android devices states not configured properly causing player to crash
 
 
 ## [0.2.0] - 2026-11-19
