@@ -9,6 +9,11 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Added
+
+- Reader📖: First version and implementation. Add your own DRM-free EPUB light novels and start reading.
+- Tap on any word too look up and add to Anki or Explain the sentence with Google's Gemini AI
+
 ## [0.1.6] - 2026-11-17
 
 ### Added

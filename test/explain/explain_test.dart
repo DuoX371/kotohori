@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -128,6 +129,42 @@ void main() {
       final lines = explainContext(cues, [cues[1], cues[2]]);
       expect(lines.map((c) => c.index), [0, 1, 2]);
     });
+  });
+
+  test('show prompt is unchanged by book support', () {
+    const c = Cue(0, Duration.zero, Duration(seconds: 1), '行');
+    final p = explainPrompt(
+      const ExplainRequest(title: 'T', lines: [c], targets: [c], model: 'm'),
+    );
+    expect(
+      sha256.convert(utf8.encode(p.system)).toString(),
+      'adffb4ad8755390004a71128d2d37d43e6ff092056282db8c8ff1c9873b4780d',
+    );
+    expect(p.user, 'Show: T\n\nSubtitle lines:\n> 行');
+  });
+
+  test('book prompt talks about a novel and its sentences', () {
+    const a = Cue(0, Duration.zero, Duration.zero, '前の文。');
+    const b = Cue(1, Duration.zero, Duration.zero, '対象の文。');
+    final p = explainPrompt(
+      const ExplainRequest(
+        title: '本のタイトル',
+        lines: [a, b],
+        targets: [b],
+        model: 'm',
+        source: ExplainSource.book,
+      ),
+    );
+    expect(
+      p.system,
+      startsWith(
+        'You help an English-speaking learner of Japanese who is reading a Japanese light novel.\n'
+        'You are given a few sentences in order. Explain only the sentence or sentences marked with ">". '
+        'The other sentences are there only so you understand the scene; do not explain them.\n',
+      ),
+    );
+    expect(p.system, contains('## Translation'));
+    expect(p.user, 'Book: 本のタイトル\n\nSentences:\n  前の文。\n> 対象の文。');
   });
 
   test('the prompt marks only the target and names the show', () {

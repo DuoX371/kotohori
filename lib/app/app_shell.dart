@@ -9,8 +9,9 @@ import '../features/update/update_snack.dart';
 import '../features/whats_new/changelog.dart';
 import '../features/whats_new/whats_new.dart';
 import '../features/whats_new/whats_new_dialog.dart';
+import '../features/reader/shelf_screen.dart';
 
-/// Top-level sections: Player (videos), Reader (light novels, not built yet)
+/// Top-level sections: Player (videos), Reader (light novels)
 /// and Dictionary (look up any word). Bottom bar on phones, a rail on wide screens.
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -77,7 +78,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       icon: Icons.menu_book_outlined,
       selected: Icons.menu_book,
       label: 'Reader',
-      ready: false,
+      ready: true,
     ),
     (
       icon: Icons.translate_outlined,
@@ -92,7 +93,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     // Both tabs stay alive, so a half-typed search or picked video survives switching.
     final body = IndexedStack(
       index: _index,
-      children: const [HomeScreen(), SizedBox.shrink(), SearchScreen()],
+      children: const [HomeScreen(), ReaderShelfScreen(), SearchScreen()],
     );
     void select(int i) => setState(() => _index = i);
     if (MediaQuery.sizeOf(context).width >= 840) {

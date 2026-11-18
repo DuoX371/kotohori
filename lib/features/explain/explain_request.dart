@@ -1,5 +1,7 @@
 import '../subtitles/cue.dart';
 
+enum ExplainSource { show, book }
+
 /// What one press of Explain asks for: the [targets] to explain, shown inside
 /// [lines] (the targets plus nearby dialogue, in order).
 class ExplainRequest {
@@ -8,10 +10,14 @@ class ExplainRequest {
     required this.lines,
     required this.targets,
     required this.model,
+    this.source = ExplainSource.show,
   });
 
-  /// The video's display name ("Show - 02").
+  /// The video's display name ("Show - 02"), or the book's title.
   final String title;
+
+  /// Subtitle lines of a show, or sentences of a book (changes the wording).
+  final ExplainSource source;
   final List<Cue> lines;
   final List<Cue> targets;
 
@@ -57,9 +63,17 @@ List<Cue> explainContext(
 
 String _oneLine(String text) => text.replaceAll('\n', ' ').trim();
 
-const _instructions = '''
+const _showIntro = '''
 You help an English-speaking learner of Japanese who is watching a show with Japanese subtitles.
 You are given a few subtitle lines in order. Explain only the line or lines marked with ">". The other lines are there only so you understand the scene; do not explain them.
+''';
+
+const _bookIntro = '''
+You help an English-speaking learner of Japanese who is reading a Japanese light novel.
+You are given a few sentences in order. Explain only the sentence or sentences marked with ">". The other sentences are there only so you understand the scene; do not explain them.
+''';
+
+const _instructions = '''
 
 Answer in English, in Markdown, with exactly these three sections and nothing else:
 
@@ -97,8 +111,14 @@ Be brief and accurate. Never use romaji.''';
     for (final c in r.lines)
       '${marked.contains(c.index) ? '>' : ' '} ${_oneLine(c.text)}',
   ].join('\n');
-  return (
-    system: _instructions,
-    user: 'Show: ${r.title}\n\nSubtitle lines:\n$dialogue',
-  );
+  return switch (r.source) {
+    ExplainSource.show => (
+      system: _showIntro + _instructions,
+      user: 'Show: ${r.title}\n\nSubtitle lines:\n$dialogue',
+    ),
+    ExplainSource.book => (
+      system: _bookIntro + _instructions,
+      user: 'Book: ${r.title}\n\nSentences:\n$dialogue',
+    ),
+  };
 }

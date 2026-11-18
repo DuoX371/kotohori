@@ -46,15 +46,19 @@ class LookupSession extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> tap(Cue cue, int index) async {
+  Future<void> tap(Cue cue, int index) => tapText(cue.index, cue.text, index);
+
+  /// Looks up [text] from [index]; [lineId] names where it came from (a
+  /// subtitle line, a book paragraph) for the highlight.
+  Future<void> tapText(int lineId, String text, int index) async {
     final id = ++_request;
     _trail.clear();
-    highlight = (cue.index, index, 1);
+    highlight = (lineId, index, 1);
     notifyListeners();
-    final r = await _lookup(cue.text, index);
+    final r = await _lookup(text, index);
     if (id != _request) return; // superseded by a newer tap or by close()
     result = r;
-    if (r.matchedLength > 0) highlight = (cue.index, index, r.matchedLength);
+    if (r.matchedLength > 0) highlight = (lineId, index, r.matchedLength);
     notifyListeners();
   }
 

@@ -26,7 +26,9 @@ Kotohori is built for one loop: **watch/read → tap → understand → mine**. 
 - **Explain a line** (optional): one tap gives a translation, a word-by-word breakdown and the nuance of the subtitle on screen, using Google's Gemini with your own free API key
 
 ### 📖 Reader
-- 🚧 Currently work in progress
+- **Read your own light novels**: add DRM-free EPUB files to a bookshelf that remembers how far you've read
+- **Vertical Japanese pages**, or horizontal if you prefer, with themes, font size and line spacing to suit you
+- **Mine as you read**: tap a word to look it up, send a card to AnkiDroid, or Explain the sentence
 
 ### 🔍 Look up
 - **Yomitan-compatible**: use the same dictionaries as the Yomitan extension, with its grammar rules built in

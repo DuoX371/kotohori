@@ -8,6 +8,18 @@ import 'package:kotohori/features/subtitles/cue.dart';
 const cue = Cue(3, Duration.zero, Duration(seconds: 2), '日本語を勉強');
 
 void main() {
+  test('tapText highlights the given line and matched span', () async {
+    final asked = <(String, int)>[];
+    final s = LookupSession((text, i) async {
+      asked.add((text, i));
+      return LookupResult(const [], 2);
+    });
+    await s.tapText(7, '猫が好き', 1);
+    expect(asked, [('猫が好き', 1)]);
+    expect(s.highlight, (7, 1, 2));
+    expect(s.isOpen, isTrue);
+  });
+
   test(
     'tap highlights the character, then the matched word; close clears',
     () async {

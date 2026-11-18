@@ -11,14 +11,26 @@ import '../dictionary/lookup/lookup.dart' show LookupResult;
 import '../dictionary/render/dictionary_link.dart';
 import '../dictionary/ui/providers.dart'
     show emptyLookupMessageProvider, htmlBuilderProvider;
-import 'player_controller.dart';
+import 'lookup_session.dart';
 import '../../platform/web_view.dart';
 
-/// Dictionary popup over the video. Renders the same results page as
+/// Dictionary popup (player and reader). Renders the same results page as
 /// Settings → Look up a word, so dictionary styles apply.
 class LookupPanel extends ConsumerStatefulWidget {
-  const LookupPanel(this.c, {super.key, required this.onAdd, this.ankiChanged});
-  final PlayerController c;
+  const LookupPanel(
+    this.lookup, {
+    super.key,
+    required this.onClose,
+    required this.onAdd,
+    this.ankiChanged,
+    this.dark = true,
+  });
+
+  /// Dark results page (the player is always dark; the reader follows the
+  /// app's theme).
+  final bool dark;
+  final LookupSession lookup;
+  final VoidCallback onClose;
 
   /// ＋ tapped on the word at this index of the current result; [decks]: where
   /// its existing cards are (null: no card yet).
@@ -34,7 +46,7 @@ class LookupPanel extends ConsumerStatefulWidget {
 class _LookupPanelState extends ConsumerState<LookupPanel> {
   // JavaScript is on only for our ＋ buttons; dictionary HTML is sanitized
   // (no scripts, no event attributes), so nothing else can run.
-  late final _web = WebViewController()
+  late final WebViewController _web = WebViewController()
     ..setJavaScriptMode(JavaScriptMode.unrestricted)
     ..addJavaScriptChannel(
       'Kotohori',
@@ -55,7 +67,7 @@ class _LookupPanelState extends ConsumerState<LookupPanel> {
         onNavigationRequest: (request) {
           final link = dictionaryLink(request.url);
           if (link.query case final text?) {
-            widget.c.lookup.follow(text);
+            widget.lookup.follow(text);
           } else if (isOwnPage(request.url)) {
             return NavigationDecision.navigate;
           } else if (link.web case final uri?) {
@@ -147,20 +159,23 @@ for (const [i, decks] of Object.entries(${jsonEncode(marks)})) {
   @override
   void initState() {
     super.initState();
-    widget.c.lookup.addListener(_load);
+    _web.setBackgroundColor(
+      widget.dark ? const Color(0xFF17171A) : const Color(0xFFFFFFFF),
+    );
+    widget.lookup.addListener(_load);
     widget.ankiChanged?.addListener(_checkAnki);
     _load();
   }
 
   @override
   void dispose() {
-    widget.c.lookup.removeListener(_load);
+    widget.lookup.removeListener(_load);
     widget.ankiChanged?.removeListener(_checkAnki);
     super.dispose();
   }
 
   void _load() {
-    final r = widget.c.lookup.result;
+    final r = widget.lookup.result;
     if (r == null || identical(r, _shown)) return;
     _shown = r;
     _pageReady = false;
@@ -173,7 +188,7 @@ for (const [i, decks] of Object.entries(${jsonEncode(marks)})) {
             r,
             emptyMessage: ref.read(emptyLookupMessageProvider),
             addButtons: true,
-            dark: true, // the player is always dark
+            dark: widget.dark,
           ),
       baseUrl: dictionaryPageBase,
     );
@@ -193,12 +208,12 @@ for (const [i, decks] of Object.entries(${jsonEncode(marks)})) {
           Row(
             children: [
               ListenableBuilder(
-                listenable: widget.c.lookup,
-                builder: (context, _) => widget.c.lookup.followedLink
+                listenable: widget.lookup,
+                builder: (context, _) => widget.lookup.followedLink
                     ? IconButton(
                         tooltip: 'Back to the previous word',
                         icon: const Icon(Icons.arrow_back),
-                        onPressed: widget.c.lookup.back,
+                        onPressed: widget.lookup.back,
                       )
                     : const SizedBox.shrink(),
               ),
@@ -206,7 +221,7 @@ for (const [i, decks] of Object.entries(${jsonEncode(marks)})) {
               IconButton(
                 tooltip: 'Close',
                 icon: const Icon(Icons.close),
-                onPressed: widget.c.closeLookup,
+                onPressed: widget.onClose,
               ),
             ],
           ),

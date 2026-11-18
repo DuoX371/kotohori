@@ -100,15 +100,16 @@ class CardExporter {
     required String cueText,
     required int matchStart,
     required int matchLength,
-    required Duration cueStart,
-    required Duration cueEnd,
-    required Duration subtitleOffset,
+    Duration? cueStart,
+    Duration? cueEnd,
+    Duration subtitleOffset = Duration.zero,
     required String word,
     required String reading,
     required String definitionHtml,
     required String videoTitle,
-    required String videoSource,
-    required Future<Uint8List?> Function() screenshot,
+    // Absent for a book: no screenshot and no sentence audio, and no warning.
+    String? videoSource,
+    Future<Uint8List?> Function()? screenshot,
   }) {
     final d = CardDraft(
       sentence: boldSentence(cueText, matchStart, matchLength),
@@ -120,7 +121,7 @@ class CardExporter {
     Future<void> image() async {
       d.imagePending = true;
       try {
-        final frame = await screenshot();
+        final frame = await screenshot!();
         if (frame == null) throw StateError('no frame');
         d.imagePath = await saveScreenshot(frame, settings, cueText);
       } catch (_) {
@@ -134,13 +135,13 @@ class CardExporter {
       d.audioPending = true;
       try {
         final (start, end) = audioRange(
-          cueStart,
-          cueEnd,
+          cueStart!,
+          cueEnd!,
           subtitleOffset,
           settings.paddingBeforeMs,
           settings.paddingAfterMs,
         );
-        d.audioPath = await saveAudio(videoSource, start, end);
+        d.audioPath = await saveAudio(videoSource!, start, end);
       } catch (e) {
         d.mediaWarnings.add(
           'Sentence audio unavailable: ${e is PlatformException ? e.message : e}',
@@ -167,8 +168,12 @@ class CardExporter {
     }
 
     d.mediaReady = Future.wait([
-      if (settings.includeScreenshot) image(),
-      if (settings.includeAudio) sentenceAudio(),
+      if (settings.includeScreenshot && screenshot != null) image(),
+      if (settings.includeAudio &&
+          videoSource != null &&
+          cueStart != null &&
+          cueEnd != null)
+        sentenceAudio(),
       if (settings.includeWordAudio) wordAudio(),
     ]);
     return d;

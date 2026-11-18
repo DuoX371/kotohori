@@ -14,6 +14,8 @@ import 'app/theme.dart';
 import 'features/dictionary/data/db.dart';
 import 'features/dictionary/data/dictionary_repo.dart';
 import 'features/dictionary/ui/providers.dart';
+import 'features/reader/library_db.dart';
+import 'features/reader/reader_providers.dart';
 import 'features/settings/appearance_settings.dart';
 import 'features/whats_new/whats_new.dart';
 
@@ -31,6 +33,7 @@ Future<void> main() async {
     dbPath: p.join(support.path, 'kotohori.sqlite'),
     mediaRoot: p.join(support.path, 'dict_media'),
     tempDir: temp.path,
+    booksDir: p.join(support.path, 'books'),
   );
   // file_picker caches a full copy of every picked file (only dictionary zips use it now).
   Directory(p.join(temp.path, 'file_picker')).delete(recursive: true).ignore();
@@ -61,6 +64,9 @@ Future<void> main() async {
       overrides: [
         appPathsProvider.overrideWithValue(paths),
         dbProvider.overrideWithValue(db),
+        libraryDbProvider.overrideWithValue(
+          LibraryDb.open(File(p.join(support.path, 'library.sqlite'))),
+        ),
         prefsProvider.overrideWithValue(prefs),
       ],
       child: const KotohoriApp(),

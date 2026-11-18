@@ -18,10 +18,14 @@ class AppPaths {
     required this.dbPath,
     required this.mediaRoot,
     required this.tempDir,
+    required this.booksDir,
   });
   final String dbPath;
   final String mediaRoot;
   final String tempDir;
+
+  /// The reader's copies of the user's books.
+  final String booksDir;
 }
 
 // Overridden in main().
