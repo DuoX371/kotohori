@@ -156,7 +156,8 @@
     var w = viewW(), h = viewH(), m = state.margin;
     // One column per page: pages run down (vertical) or across (horizontal).
     s.textContent =
-      'html{overflow:hidden !important;height:' + h + 'px !important;width:' + w + 'px !important;}' +
+      'html{overflow:hidden !important;touch-action:none !important;' +
+      'height:' + h + 'px !important;width:' + w + 'px !important;}' +
       'body{box-sizing:border-box !important;overflow:hidden !important;' +
       'width:' + w + 'px !important;height:' + h + 'px !important;max-width:none !important;' +
       'column-fill:auto !important;column-gap:' + (2 * m) + 'px !important;' +

@@ -116,6 +116,10 @@ class BookViewController {
   }) {
     web
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..enableZoom(false)
+      ..setVerticalScrollBarEnabled(false)
+      ..setHorizontalScrollBarEnabled(false)
+      ..setOverScrollMode(WebViewOverScrollMode.never)
       ..setBackgroundColor(theme.background)
       ..addJavaScriptChannel(
         'Kotohori',

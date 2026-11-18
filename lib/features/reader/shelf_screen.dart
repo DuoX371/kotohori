@@ -14,6 +14,7 @@ import 'library_db.dart';
 import 'reader_providers.dart';
 import 'book_details_sheet.dart';
 import 'reader_screen.dart';
+import 'shelf_layout.dart';
 
 /// The Reader tab: the user's books, most recently read first.
 class ReaderShelfScreen extends ConsumerWidget {
@@ -52,26 +53,37 @@ class ReaderShelfScreen extends ConsumerWidget {
             label: const Text('Add your first book'),
           ),
         ),
-        final list => GridView.builder(
-          // Room at the bottom so the Add book button never hides a book.
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 160,
-            childAspectRatio: 0.52,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-          ),
-          itemCount: list.length,
-          itemBuilder: (context, i) => _BookTile(
-            list[i],
-            onOpen: () => _open(context, list[i]),
-            onDetails: () => showBookDetails(
-              context,
-              list[i],
-              onContinue: () => _open(context, list[i]),
-              onRemove: () => _remove(context, ref, list[i]),
-            ),
-          ),
+        final list => LayoutBuilder(
+          builder: (context, box) {
+            final layout = ShelfLayout(box.maxWidth);
+            final still = MediaQuery.disableAnimationsOf(context);
+            return SingleChildScrollView(
+              child: SizedBox(
+                height: layout.height(list.length),
+                child: Stack(
+                  children: [
+                    for (final (i, book) in list.indexed.toList().reversed)
+                      AnimatedPositioned.fromRect(
+                        key: ValueKey(book.hash),
+                        rect: layout.slot(i),
+                        duration: Duration(milliseconds: still ? 0 : 450),
+                        curve: Curves.easeInOutCubic,
+                        child: _BookTile(
+                          book,
+                          onOpen: () => _open(context, book),
+                          onDetails: () => showBookDetails(
+                            context,
+                            book,
+                            onContinue: () => _open(context, book),
+                            onRemove: () => _remove(context, ref, book),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       },
     );
@@ -85,14 +97,55 @@ class ReaderShelfScreen extends ConsumerWidget {
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
-    void say(String text) => messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
-    final picked = await FilePicker.pickFile(
+    void say(String text, {Duration duration = const Duration(seconds: 4)}) =>
+        messenger
+          ..clearSnackBars()
+          ..showSnackBar(SnackBar(content: Text(text), duration: duration));
+    final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['epub'],
     );
-    if (picked == null) return;
+    if (picked.isEmpty) return;
+
+    if (picked.length == 1) {
+      final r = await _addOne(ref, picked.single);
+      switch (r) {
+        case (book: final book?, existed: final existed, error: null):
+          if (existed) say('Already on your shelf');
+          if (context.mounted) _open(context, book);
+        case (error: final e?, book: _, existed: _):
+          say(
+            e == EpubError.drm
+                ? "This book is DRM-protected, so Kotohori can't open it."
+                : "Couldn't open this book. It may not be a valid EPUB.",
+          );
+        default:
+      }
+      return;
+    }
+
+    var added = 0, existed = 0, failed = 0;
+    for (final (i, file) in picked.indexed) {
+      say(
+        'Adding ${i + 1} of ${picked.length}…',
+        duration: const Duration(minutes: 5),
+      );
+      final r = await _addOne(ref, file);
+      if (r.error != null) {
+        failed++;
+      } else if (r.existed) {
+        existed++;
+      } else {
+        added++;
+      }
+    }
+    say(importSummary(added: added, existed: existed, failed: failed));
+  }
+
+  Future<({Book? book, bool existed, EpubError? error})> _addOne(
+    WidgetRef ref,
+    PlatformFile picked,
+  ) async {
     var path = picked.path;
     File? temp;
     try {
@@ -110,16 +163,11 @@ class ReaderShelfScreen extends ConsumerWidget {
         path = temp.path;
       }
       final r = await ref.read(bookRepoProvider).addFromFile(path);
-      if (r.existed) say('Already on your shelf');
-      if (context.mounted) _open(context, r.book);
+      return (book: r.book, existed: r.existed, error: null);
     } on EpubException catch (e) {
-      say(
-        e.error == EpubError.drm
-            ? "This book is DRM-protected, so Kotohori can't open it."
-            : "Couldn't open this book. It may not be a valid EPUB.",
-      );
+      return (book: null, existed: false, error: e.error);
     } on Object {
-      say("Couldn't open this book. It may not be a valid EPUB.");
+      return (book: null, existed: false, error: EpubError.invalid);
     } finally {
       temp?.delete().ignore();
     }
@@ -249,3 +297,13 @@ class _BookTileState extends State<_BookTile> {
     );
   }
 }
+
+String importSummary({
+  required int added,
+  required int existed,
+  required int failed,
+}) => [
+  if (added > 0) 'Added $added book${added == 1 ? '' : 's'}',
+  if (existed > 0) '$existed already on your shelf',
+  if (failed > 0) "$failed couldn't be opened",
+].join(' · ');
