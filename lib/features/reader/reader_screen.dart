@@ -561,17 +561,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                     await showModalBottomSheet<void>(
                                       context: context,
                                       isScrollControlled: true,
+                                      showDragHandle: false,
                                       barrierColor: Colors.transparent,
-                                      // The sheet paints itself in the reading
-                                      // theme, which can change while it's
-                                      // open.
                                       backgroundColor: Colors.transparent,
                                       elevation: 0,
                                       builder: (_) =>
                                           const ReaderSettingsSheet(),
                                     );
-                                    // A direction switched in the sheet: show
-                                    // its hint now that the page is visible.
                                     if (_view != null) _maybeHint();
                                   },
                                 ),
