@@ -31,7 +31,7 @@ class ReaderPreview extends ConsumerStatefulWidget {
 }
 
 class _ReaderPreviewState extends ConsumerState<ReaderPreview> {
-  final _web = WebViewController();
+  final _web = WebViewController()..enableZoom(false);
 
   /// Loaded from a file, like a book chapter, so added fonts (file URLs)
   /// load the same way they do in a book.

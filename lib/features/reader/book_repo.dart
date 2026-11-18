@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
@@ -32,7 +33,7 @@ class BookRepo {
     )..where((b) => b.hash.equals(hash))).getSingleOrNull();
     if (known != null) return (book: known, existed: true);
 
-    final epub = parseEpub(bytes);
+    final epub = await parseEpubInBackground(bytes);
     final copy = File(epubPath(hash));
     final cover = epub.cover == null ? null : File(_coverPath(hash));
     try {
@@ -87,6 +88,16 @@ class BookRepo {
     );
   }
 
+  /// Adds [ms] of reading to the book's total.
+  Future<void> addReadingTime(String hash, int ms) async {
+    if (ms <= 0) return;
+    await db.customUpdate(
+      'UPDATE books SET reading_ms = reading_ms + ? WHERE hash = ?',
+      variables: [Variable(ms), Variable(hash)],
+      updates: {db.books},
+    );
+  }
+
   /// Removes the book and everything Kotohori stored for it. The user's
   /// original file is never touched.
   Future<void> remove(String hash) async {
@@ -98,3 +109,8 @@ class BookRepo {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   }
 }
+
+/// [parseEpub] off the UI thread, so adding books (several at once, or a big
+/// one) doesn't freeze the app. Top-level so the isolate gets only [bytes].
+Future<EpubBook> parseEpubInBackground(Uint8List bytes) =>
+    Isolate.run(() => parseEpub(bytes));

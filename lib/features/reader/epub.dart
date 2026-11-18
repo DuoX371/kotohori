@@ -113,13 +113,148 @@ Iterable<XmlElement> _named(XmlNode n, String local) =>
   return (joined.startsWith('./') ? joined.substring(2) : joined, fragment);
 }
 
-EpubBook _parse(Archive zip) {
+/// The package document (OPF): where it is and its contents.
+(String, XmlDocument) _opf(Archive zip) {
   final container = _xml(zip, 'META-INF/container.xml');
-  final opfPath = _named(
-    container,
-    'rootfile',
-  ).first.getAttribute('full-path')!;
-  final opf = _xml(zip, opfPath);
+  final path = _named(container, 'rootfile').first.getAttribute('full-path')!;
+  return (path, _xml(zip, path));
+}
+
+String? _text(XmlDocument opf, String local) {
+  final t = _named(opf, local).firstOrNull?.innerText.trim();
+  return t == null || t.isEmpty ? null : t;
+}
+
+/// What the book details sheet shows. Only the package document is read, so
+/// it's quick even for a big book.
+class EpubDetails {
+  const EpubDetails({
+    required this.title,
+    this.author,
+    this.publisher,
+    this.year,
+    this.language,
+    this.description,
+    this.series,
+    this.seriesIndex,
+    this.illustrators = const [],
+    this.translators = const [],
+    this.subjects = const [],
+    this.isbn,
+  });
+  final String title;
+  final String? author, publisher, year, language, description;
+  final String? series, seriesIndex, isbn;
+  final List<String> illustrators, translators;
+
+  /// Genres/tags the publisher gave (dc:subject).
+  final List<String> subjects;
+}
+
+/// People credited on the book with their MARC role ("aut", "ill", "trl"…):
+/// EPUB 2 puts it in an opf:role attribute, EPUB 3 in a refining <meta>.
+List<({String name, String? role})> _people(XmlDocument opf) {
+  final metas = _named(opf, 'meta').toList();
+  return [
+    for (final e in [..._named(opf, 'creator'), ..._named(opf, 'contributor')])
+      if (e.innerText.trim() case final name when name.isNotEmpty)
+        (
+          name: name,
+          role:
+              e.attributes
+                  .where((a) => a.name.local == 'role')
+                  .firstOrNull
+                  ?.value ??
+              metas
+                  .where(
+                    (m) =>
+                        m.getAttribute('property') == 'role' &&
+                        m.getAttribute('refines') == '#${e.getAttribute('id')}',
+                  )
+                  .firstOrNull
+                  ?.innerText
+                  .trim(),
+        ),
+  ];
+}
+
+/// An ISBN among the book's identifiers ("urn:isbn:978…", "978-4-…").
+String? _isbn(XmlDocument opf) {
+  for (final id in _named(opf, 'identifier')) {
+    final digits = id.innerText.replaceAll(RegExp('[^0-9Xx]'), '');
+    final tagged =
+        id.innerText.toLowerCase().contains('isbn') ||
+        id.attributes.any((a) => a.value.toUpperCase() == 'ISBN');
+    if (digits.length == 13 && RegExp('^97[89]').hasMatch(digits) ||
+        tagged && (digits.length == 10 || digits.length == 13)) {
+      return digits.toUpperCase();
+    }
+  }
+  return null;
+}
+
+/// The book's details. Throws [EpubException] for an unreadable file.
+EpubDetails epubDetails(Uint8List bytes) {
+  try {
+    final (opfPath, opf) = _opf(ZipDecoder().decodeBytes(bytes));
+    String? meta(String name) => _named(opf, 'meta')
+        .where((m) => m.getAttribute('name') == name)
+        .firstOrNull
+        ?.getAttribute('content');
+    // EPUB 3: <meta property="belongs-to-collection" id="c">Name</meta> and
+    // <meta refines="#c" property="group-position">8</meta>.
+    final collection = _named(opf, 'meta')
+        .where((m) => m.getAttribute('property') == 'belongs-to-collection')
+        .firstOrNull;
+    final position = collection == null
+        ? null
+        : _named(opf, 'meta')
+              .where(
+                (m) =>
+                    m.getAttribute('refines') ==
+                        '#${collection.getAttribute('id')}' &&
+                    m.getAttribute('property') == 'group-position',
+              )
+              .firstOrNull
+              ?.innerText;
+    final index = (meta('calibre:series_index') ?? position)?.trim();
+    final blurb = _text(opf, 'description')
+        ?.replaceAll(RegExp(r'<[^>]*>'), '') // often HTML inside the text
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    final people = _people(opf);
+    List<String> withRole(String role) => [
+      for (final x in people)
+        if (x.role == role) x.name,
+    ];
+    return EpubDetails(
+      title: _text(opf, 'title') ?? p.basenameWithoutExtension(opfPath),
+      // The first creator who is an author (or has no role given).
+      author: people
+          .where((x) => x.role == null || x.role == 'aut')
+          .firstOrNull
+          ?.name,
+      illustrators: withRole('ill'),
+      translators: withRole('trl'),
+      subjects: [
+        for (final e in _named(opf, 'subject'))
+          if (e.innerText.trim() case final t when t.isNotEmpty) t,
+      ],
+      isbn: _isbn(opf),
+      publisher: _text(opf, 'publisher'),
+      year: RegExp(r'^\d{4}').stringMatch(_text(opf, 'date') ?? ''),
+      language: _text(opf, 'language'),
+      description: blurb == null || blurb.isEmpty ? null : blurb,
+      series: meta('calibre:series') ?? collection?.innerText.trim(),
+      seriesIndex: index?.replaceFirst(RegExp(r'\.0+$'), ''),
+    );
+  } on Object {
+    throw const EpubException(EpubError.invalid);
+  }
+}
+
+EpubBook _parse(Archive zip) {
+  final (opfPath, opf) = _opf(zip);
 
   final manifest = {
     for (final item in _named(opf, 'item'))
@@ -128,11 +263,7 @@ EpubBook _parse(Archive zip) {
         properties: item.getAttribute('properties') ?? '',
       ),
   };
-  String? text(String local) {
-    final e = _named(opf, local).firstOrNull;
-    final t = e?.innerText.trim();
-    return t == null || t.isEmpty ? null : t;
-  }
+  String? text(String local) => _text(opf, local);
 
   final spine = <EpubChapter>[];
   for (final ref in _named(opf, 'itemref')) {

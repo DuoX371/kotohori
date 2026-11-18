@@ -23,6 +23,9 @@ class Books extends Table {
       integer().named('char_offset').withDefault(const Constant(0))();
   RealColumn get progress => real().withDefault(const Constant(0))();
 
+  /// Time spent reading this book (schema 2).
+  IntColumn get readingMs => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {hash};
 }
@@ -36,5 +39,12 @@ class LibraryDb extends _$LibraryDb {
       LibraryDb(NativeDatabase.createInBackground(file));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) await m.addColumn(books, books.readingMs);
+    },
+  );
 }
