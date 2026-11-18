@@ -9,6 +9,8 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-19
+
 ### Added
 
 - Reader📖: First version and implementation. Add your own DRM-free EPUB light novels and start reading.
@@ -102,7 +104,8 @@ First beta.
 - 🔔 **Notifications:** the bell walks you through installing a dictionary and
   connecting AnkiDroid, and tells you when a new version is out
 
-[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/DuoX371/kotohori/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/DuoX371/kotohori/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/DuoX371/kotohori/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/DuoX371/kotohori/compare/v0.1.3...v0.1.4
