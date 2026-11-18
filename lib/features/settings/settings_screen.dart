@@ -6,6 +6,7 @@ import '../anki/anki_settings_screen.dart';
 import '../dictionary/ui/installed_screen.dart';
 import '../dictionary/ui/recommended_screen.dart';
 import '../explain/explain_settings_screen.dart';
+import '../reader/reader_settings_sheet.dart';
 import '../update/update_check.dart';
 import '../update/update_snack.dart';
 import 'appearance_settings.dart';
@@ -33,68 +34,8 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: pagePadding(context, top: 0),
         children: [
-          // Grouped like the app's tabs: Player, Reader, Dictionary; then shared settings.
-          Section(
-            title: 'Dictionaries',
-            children: [
-              link(
-                Icons.library_books_outlined,
-                'Installed dictionaries',
-                'Turn on or off, reorder, import, update',
-                const InstalledScreen(),
-              ),
-              link(
-                Icons.download_outlined,
-                'Get dictionaries',
-                'Download recommended ones in one tap',
-                const RecommendedScreen(),
-              ),
-            ],
-          ),
-          Section(
-            title: 'Flashcards',
-            children: [
-              link(
-                Icons.style_outlined,
-                'Anki',
-                'Deck, note type, fields, screenshot and audio',
-                const AnkiSettingsScreen(),
-              ),
-            ],
-          ),
-          Section(
-            title: 'Player',
-            children: [
-              link(
-                Icons.closed_caption_outlined,
-                'Subtitle appearance',
-                'Size, colour, outline or box',
-                const SubtitleStyleScreen(),
-              ),
-            ],
-          ),
-          Section(
-            title: 'AI explain',
-            children: [
-              link(
-                Icons.auto_awesome_outlined,
-                'Explain',
-                'Configure Gemini AI and enable explains',
-                const ExplainSettingsScreen(),
-              ),
-            ],
-          ),
-          const Section(
-            title: 'Reader',
-            children: [
-              ListTile(
-                enabled: false,
-                leading: Icon(Icons.menu_book_outlined),
-                title: Text('Light novel reader'),
-                subtitle: Text('Coming soon'),
-              ),
-            ],
-          ),
+          // App-wide first, then Anki, then the app's tabs (Player, Reader,
+          // Dictionary), then AI explain.
           Section(
             title: 'Appearance',
             children: [
@@ -129,6 +70,67 @@ class SettingsScreen extends ConsumerWidget {
                     );
                   },
                 ),
+              ),
+            ],
+          ),
+          Section(
+            title: 'Flashcards',
+            children: [
+              link(
+                Icons.style_outlined,
+                'Anki',
+                'Deck, note type, fields, screenshot and audio',
+                const AnkiSettingsScreen(),
+              ),
+            ],
+          ),
+          Section(
+            title: 'Player',
+            children: [
+              link(
+                Icons.closed_caption_outlined,
+                'Subtitle appearance',
+                'Size, colour, outline or box',
+                const SubtitleStyleScreen(),
+              ),
+            ],
+          ),
+          Section(
+            title: 'Reader',
+            children: [
+              link(
+                Icons.text_fields,
+                'Reading appearance',
+                'Theme, font, text size and direction',
+                const ReaderSettingsScreen(),
+              ),
+            ],
+          ),
+          Section(
+            title: 'Dictionaries',
+            children: [
+              link(
+                Icons.library_books_outlined,
+                'Installed dictionaries',
+                'Turn on or off, reorder, import, update',
+                const InstalledScreen(),
+              ),
+              link(
+                Icons.download_outlined,
+                'Get dictionaries',
+                'Download recommended ones in one tap',
+                const RecommendedScreen(),
+              ),
+            ],
+          ),
+          Section(
+            title: 'AI explain',
+            children: [
+              link(
+                Icons.auto_awesome_outlined,
+                'Explain',
+                'Configure Gemini AI and enable explains',
+                const ExplainSettingsScreen(),
               ),
             ],
           ),

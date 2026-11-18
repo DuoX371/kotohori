@@ -5,12 +5,19 @@ import '../explain/explain_session.dart';
 import '../explain/explain_settings.dart';
 import '../explain/explain_tidy.dart';
 import '../explain/gemini_client.dart';
-import 'player_controller.dart';
 
-/// The AI explanation of a subtitle line, docked where the dictionary popup goes.
+/// The AI explanation of a subtitle line or book sentence, docked where the
+/// dictionary popup goes.
 class ExplainPanel extends StatelessWidget {
-  const ExplainPanel(this.c, {super.key, required this.onOpenSettings});
-  final PlayerController c;
+  const ExplainPanel(
+    this.explain, {
+    super.key,
+    required this.onClose,
+    required this.onOpenSettings,
+  });
+
+  final ExplainSession explain;
+  final VoidCallback onClose;
   final VoidCallback onOpenSettings;
 
   @override
@@ -22,9 +29,9 @@ class ExplainPanel extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: ListenableBuilder(
-        listenable: c.explain,
+        listenable: explain,
         builder: (context, _) {
-          final s = c.explain;
+          final s = explain;
           final r = s.request;
           // Closing: keep the frame empty while the panel slides away.
           if (r == null) return const SizedBox.expand();
@@ -68,7 +75,7 @@ class ExplainPanel extends StatelessWidget {
                     IconButton(
                       tooltip: 'Close',
                       icon: const Icon(Icons.close),
-                      onPressed: c.closeExplain,
+                      onPressed: onClose,
                     ),
                   ],
                 ),

@@ -736,13 +736,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       child: c.explain.isOpen
           ? ExplainPanel(
               key: const ValueKey('explain'),
-              c,
+              c.explain,
+              onClose: c.closeExplain,
               onOpenSettings: _openExplainSettings,
             )
           : c.lookup.isOpen
           ? LookupPanel(
               key: const ValueKey('lookup'),
-              c,
+              c.lookup,
+              onClose: c.closeLookup,
               onAdd: _addCard,
               ankiChanged: _ankiChanged,
             )
