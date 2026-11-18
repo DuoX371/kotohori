@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme.dart';
 import '../anki/anki_settings_screen.dart';
@@ -144,6 +145,15 @@ class SettingsScreen extends ConsumerWidget {
                   'Version ${ref.watch(appVersionProvider).value ?? '…'}',
                 ),
                 onTap: () => _checkForUpdates(context, ref),
+              ),
+              ListTile(
+                leading: const Icon(Icons.code),
+                title: const Text('Project page'),
+                trailing: const Icon(Icons.open_in_new),
+                onTap: () => launchUrl(
+                  Uri.parse('https://github.com/$releasesRepo'),
+                  mode: LaunchMode.externalApplication,
+                ),
               ),
               ListTile(
                 leading: const Icon(Icons.info_outline),

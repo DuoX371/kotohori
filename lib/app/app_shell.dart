@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/dictionary/ui/providers.dart' show prefsProvider;
 import '../features/dictionary/ui/search_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/notices/notices.dart';
@@ -21,7 +22,11 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  var _index = 0;
+  static const _sectionKey = 'app.section';
+  late var _index = (ref.read(prefsProvider).getInt(_sectionKey) ?? 0).clamp(
+    0,
+    _sections.length - 1,
+  );
 
   // AnkiDroid may have been installed or its permission changed meanwhile.
   late final _lifecycle = AppLifecycleListener(
@@ -95,7 +100,11 @@ class _AppShellState extends ConsumerState<AppShell> {
       index: _index,
       children: const [HomeScreen(), ReaderShelfScreen(), SearchScreen()],
     );
-    void select(int i) => setState(() => _index = i);
+    void select(int i) {
+      setState(() => _index = i);
+      ref.read(prefsProvider).setInt(_sectionKey, i);
+    }
+
     if (MediaQuery.sizeOf(context).width >= 840) {
       return Scaffold(
         body: Row(

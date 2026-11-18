@@ -99,4 +99,12 @@ void main() {
     await repo.addReadingTime(b.hash, 0);
     expect((await repo.watchAll().first).single.readingMs, 90000);
   });
+
+  test('marking finished and back', () async {
+    final b = (await repo.addFromFile(epubFile('a.epub'))).book;
+    await repo.setFinished([b.hash], true);
+    expect((await repo.watchAll().first).single.finishedAt, isNotNull);
+    await repo.setFinished([b.hash], false);
+    expect((await repo.watchAll().first).single.finishedAt, isNull);
+  });
 }

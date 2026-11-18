@@ -98,6 +98,16 @@ class BookRepo {
     );
   }
 
+  Future<void> setFinished(Iterable<String> hashes, bool finished) async {
+    await (db.update(db.books)..where((b) => b.hash.isIn(hashes))).write(
+      BooksCompanion(
+        finishedAt: Value(
+          finished ? DateTime.now().millisecondsSinceEpoch : null,
+        ),
+      ),
+    );
+  }
+
   /// Removes the book and everything Kotohori stored for it. The user's
   /// original file is never touched.
   Future<void> remove(String hash) async {

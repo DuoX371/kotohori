@@ -125,6 +125,17 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _finishedAtMeta = const VerificationMeta(
+    'finishedAt',
+  );
+  @override
+  late final GeneratedColumn<int> finishedAt = GeneratedColumn<int>(
+    'finished_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     hash,
@@ -138,6 +149,7 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     offset,
     progress,
     readingMs,
+    finishedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -231,6 +243,12 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         readingMs.isAcceptableOrUnknown(data['reading_ms']!, _readingMsMeta),
       );
     }
+    if (data.containsKey('finished_at')) {
+      context.handle(
+        _finishedAtMeta,
+        finishedAt.isAcceptableOrUnknown(data['finished_at']!, _finishedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -284,6 +302,10 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         DriftSqlType.int,
         data['${effectivePrefix}reading_ms'],
       )!,
+      finishedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}finished_at'],
+      ),
     );
   }
 
@@ -310,6 +332,9 @@ class Book extends DataClass implements Insertable<Book> {
 
   /// Time spent reading this book (schema 2).
   final int readingMs;
+
+  /// When the reader marked the book finished (schema 3); null if not marked.
+  final int? finishedAt;
   const Book({
     required this.hash,
     required this.title,
@@ -322,6 +347,7 @@ class Book extends DataClass implements Insertable<Book> {
     required this.offset,
     required this.progress,
     required this.readingMs,
+    this.finishedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -343,6 +369,9 @@ class Book extends DataClass implements Insertable<Book> {
     map['char_offset'] = Variable<int>(offset);
     map['progress'] = Variable<double>(progress);
     map['reading_ms'] = Variable<int>(readingMs);
+    if (!nullToAbsent || finishedAt != null) {
+      map['finished_at'] = Variable<int>(finishedAt);
+    }
     return map;
   }
 
@@ -365,6 +394,9 @@ class Book extends DataClass implements Insertable<Book> {
       offset: Value(offset),
       progress: Value(progress),
       readingMs: Value(readingMs),
+      finishedAt: finishedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(finishedAt),
     );
   }
 
@@ -385,6 +417,7 @@ class Book extends DataClass implements Insertable<Book> {
       offset: serializer.fromJson<int>(json['offset']),
       progress: serializer.fromJson<double>(json['progress']),
       readingMs: serializer.fromJson<int>(json['readingMs']),
+      finishedAt: serializer.fromJson<int?>(json['finishedAt']),
     );
   }
   @override
@@ -402,6 +435,7 @@ class Book extends DataClass implements Insertable<Book> {
       'offset': serializer.toJson<int>(offset),
       'progress': serializer.toJson<double>(progress),
       'readingMs': serializer.toJson<int>(readingMs),
+      'finishedAt': serializer.toJson<int?>(finishedAt),
     };
   }
 
@@ -417,6 +451,7 @@ class Book extends DataClass implements Insertable<Book> {
     int? offset,
     double? progress,
     int? readingMs,
+    Value<int?> finishedAt = const Value.absent(),
   }) => Book(
     hash: hash ?? this.hash,
     title: title ?? this.title,
@@ -429,6 +464,7 @@ class Book extends DataClass implements Insertable<Book> {
     offset: offset ?? this.offset,
     progress: progress ?? this.progress,
     readingMs: readingMs ?? this.readingMs,
+    finishedAt: finishedAt.present ? finishedAt.value : this.finishedAt,
   );
   Book copyWithCompanion(BooksCompanion data) {
     return Book(
@@ -447,6 +483,9 @@ class Book extends DataClass implements Insertable<Book> {
       offset: data.offset.present ? data.offset.value : this.offset,
       progress: data.progress.present ? data.progress.value : this.progress,
       readingMs: data.readingMs.present ? data.readingMs.value : this.readingMs,
+      finishedAt: data.finishedAt.present
+          ? data.finishedAt.value
+          : this.finishedAt,
     );
   }
 
@@ -463,7 +502,8 @@ class Book extends DataClass implements Insertable<Book> {
           ..write('chapter: $chapter, ')
           ..write('offset: $offset, ')
           ..write('progress: $progress, ')
-          ..write('readingMs: $readingMs')
+          ..write('readingMs: $readingMs, ')
+          ..write('finishedAt: $finishedAt')
           ..write(')'))
         .toString();
   }
@@ -481,6 +521,7 @@ class Book extends DataClass implements Insertable<Book> {
     offset,
     progress,
     readingMs,
+    finishedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -496,7 +537,8 @@ class Book extends DataClass implements Insertable<Book> {
           other.chapter == this.chapter &&
           other.offset == this.offset &&
           other.progress == this.progress &&
-          other.readingMs == this.readingMs);
+          other.readingMs == this.readingMs &&
+          other.finishedAt == this.finishedAt);
 }
 
 class BooksCompanion extends UpdateCompanion<Book> {
@@ -511,6 +553,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
   final Value<int> offset;
   final Value<double> progress;
   final Value<int> readingMs;
+  final Value<int?> finishedAt;
   final Value<int> rowid;
   const BooksCompanion({
     this.hash = const Value.absent(),
@@ -524,6 +567,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.offset = const Value.absent(),
     this.progress = const Value.absent(),
     this.readingMs = const Value.absent(),
+    this.finishedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BooksCompanion.insert({
@@ -538,6 +582,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.offset = const Value.absent(),
     this.progress = const Value.absent(),
     this.readingMs = const Value.absent(),
+    this.finishedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : hash = Value(hash),
        title = Value(title),
@@ -555,6 +600,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Expression<int>? offset,
     Expression<double>? progress,
     Expression<int>? readingMs,
+    Expression<int>? finishedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -569,6 +615,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
       if (offset != null) 'char_offset': offset,
       if (progress != null) 'progress': progress,
       if (readingMs != null) 'reading_ms': readingMs,
+      if (finishedAt != null) 'finished_at': finishedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -585,6 +632,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Value<int>? offset,
     Value<double>? progress,
     Value<int>? readingMs,
+    Value<int?>? finishedAt,
     Value<int>? rowid,
   }) {
     return BooksCompanion(
@@ -599,6 +647,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
       offset: offset ?? this.offset,
       progress: progress ?? this.progress,
       readingMs: readingMs ?? this.readingMs,
+      finishedAt: finishedAt ?? this.finishedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -639,6 +688,9 @@ class BooksCompanion extends UpdateCompanion<Book> {
     if (readingMs.present) {
       map['reading_ms'] = Variable<int>(readingMs.value);
     }
+    if (finishedAt.present) {
+      map['finished_at'] = Variable<int>(finishedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -659,6 +711,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
           ..write('offset: $offset, ')
           ..write('progress: $progress, ')
           ..write('readingMs: $readingMs, ')
+          ..write('finishedAt: $finishedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -688,6 +741,7 @@ typedef $$BooksTableCreateCompanionBuilder = BooksCompanion Function({
   Value<int> offset,
   Value<double> progress,
   Value<int> readingMs,
+  Value<int?> finishedAt,
   Value<int> rowid,
 });
 typedef $$BooksTableUpdateCompanionBuilder = BooksCompanion Function({
@@ -702,6 +756,7 @@ typedef $$BooksTableUpdateCompanionBuilder = BooksCompanion Function({
   Value<int> offset,
   Value<double> progress,
   Value<int> readingMs,
+  Value<int?> finishedAt,
   Value<int> rowid,
 });
 
@@ -765,6 +820,11 @@ class $$BooksTableFilterComposer extends Composer<_$LibraryDb, $BooksTable> {
 
   ColumnFilters<int> get readingMs => $composableBuilder(
     column: $table.readingMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -831,6 +891,11 @@ class $$BooksTableOrderingComposer extends Composer<_$LibraryDb, $BooksTable> {
     column: $table.readingMs,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BooksTableAnnotationComposer
@@ -878,6 +943,11 @@ class $$BooksTableAnnotationComposer
 
   GeneratedColumn<int> get readingMs =>
       $composableBuilder(column: $table.readingMs, builder: (column) => column);
+
+  GeneratedColumn<int> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$BooksTableTableManager
@@ -919,6 +989,7 @@ class $$BooksTableTableManager
                 Value<int> offset = const Value.absent(),
                 Value<double> progress = const Value.absent(),
                 Value<int> readingMs = const Value.absent(),
+                Value<int?> finishedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BooksCompanion(
                 hash: hash,
@@ -932,6 +1003,7 @@ class $$BooksTableTableManager
                 offset: offset,
                 progress: progress,
                 readingMs: readingMs,
+                finishedAt: finishedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -947,6 +1019,7 @@ class $$BooksTableTableManager
                 Value<int> offset = const Value.absent(),
                 Value<double> progress = const Value.absent(),
                 Value<int> readingMs = const Value.absent(),
+                Value<int?> finishedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BooksCompanion.insert(
                 hash: hash,
@@ -960,6 +1033,7 @@ class $$BooksTableTableManager
                 offset: offset,
                 progress: progress,
                 readingMs: readingMs,
+                finishedAt: finishedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
