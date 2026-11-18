@@ -9,6 +9,13 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-19
+
+### Fixed
+
+- Fixed some Android devices states not configuration causing player to crash
+
+
 ## [0.2.0] - 2026-11-19
 
 ### Added
@@ -104,7 +111,8 @@ First beta.
 - 🔔 **Notifications:** the bell walks you through installing a dictionary and
   connecting AnkiDroid, and tells you when a new version is out
 
-[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/DuoX371/kotohori/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/DuoX371/kotohori/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/DuoX371/kotohori/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/DuoX371/kotohori/compare/v0.1.4...v0.1.5
