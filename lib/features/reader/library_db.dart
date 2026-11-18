@@ -26,6 +26,9 @@ class Books extends Table {
   /// Time spent reading this book (schema 2).
   IntColumn get readingMs => integer().withDefault(const Constant(0))();
 
+  /// When the reader marked the book finished (schema 3); null if not marked.
+  IntColumn get finishedAt => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {hash};
 }
@@ -39,12 +42,13 @@ class LibraryDb extends _$LibraryDb {
       LibraryDb(NativeDatabase.createInBackground(file));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
       if (from < 2) await m.addColumn(books, books.readingMs);
+      if (from < 3) await m.addColumn(books, books.finishedAt);
     },
   );
 }

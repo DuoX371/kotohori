@@ -31,6 +31,7 @@ void main() {
         ('本', 3, 42, 0.5),
       );
       expect(book.readingMs, 0);
+      expect(book.finishedAt, isNull);
     },
   );
 }
