@@ -321,18 +321,72 @@ class CardExporter {
   /// [model] holds the word (then duplicates can't be told apart). Not limited
   /// to [model]: a word mined earlier with another note type (say, on a PC)
   /// counts too, as long as that type's field has the same name.
-  static String? duplicateSearch(AnkiModel model, AnkiSettings s, String word) {
-    final wordField = s.fieldMap.entries
-        .where((e) => e.value == CardSource.word)
+  static String? duplicateSearch(
+    AnkiModel model,
+    AnkiSettings s,
+    String word,
+  ) => _fieldSearch(model, s, CardSource.word, word);
+
+  /// Anki search for notes whose [source] field holds [value] exactly; null
+  /// when no field of [model] is set up for it.
+  static String? _fieldSearch(
+    AnkiModel model,
+    AnkiSettings s,
+    CardSource source,
+    String value,
+  ) {
+    final field = s.fieldMap.entries
+        .where((e) => e.value == source)
         .firstOrNull
         ?.key;
-    if (wordField == null ||
-        word.isEmpty ||
-        !model.fields.contains(wordField)) {
+    if (field == null || value.isEmpty || !model.fields.contains(field)) {
       return null;
     }
-    return '"${ankiSearchEscape(wordField)}:${ankiSearchEscape(word)}"';
+    return '"${ankiSearchEscape(field)}:${ankiSearchEscape(value)}"';
   }
+
+  /// The search for cards mined from [title] (their Source field), or null
+  /// when Anki isn't set up or allowed. Never asks for permission.
+  Future<String?> _sourceSearch(String title, AnkiSettings s) async {
+    final status = await anki.status();
+    if (!status.installed || !status.permission || s.modelId == null) {
+      return null;
+    }
+    final model = (await anki.models())
+        .where((m) => m.id == s.modelId)
+        .firstOrNull;
+    return model == null
+        ? null
+        : _fieldSearch(model, s, CardSource.source, title);
+  }
+
+  /// How many cards were mined from the book [title]; null when that can't be
+  /// told (no AnkiDroid, no permission, no Source field). Silent on errors.
+  Future<int?> cardsFrom(String title, AnkiSettings s) async {
+    try {
+      final search = await _sourceSearch(title, s);
+      return search == null ? null : await anki.countNotes(search);
+    } on AnkiException {
+      return null;
+    }
+  }
+
+  /// A link that opens AnkiDroid's card browser on the cards from [title].
+  Future<Uri?> browseSourceUri(String title, AnkiSettings s) async {
+    try {
+      final search = await _sourceSearch(title, s);
+      return search == null ? null : _browser(search);
+    } on AnkiException {
+      return null;
+    }
+  }
+
+  static Uri _browser(String search) => Uri(
+    scheme: 'anki',
+    host: 'x-callback-url',
+    path: '/browser',
+    queryParameters: {'search': search},
+  );
 
   /// Words that already have a card (same check as [send]) → the decks those
   /// cards are in. Read-only and silent: never asks for permission; on any
@@ -372,13 +426,7 @@ class CardExporter {
           .where((m) => m.id == s.modelId)
           .firstOrNull;
       final search = model == null ? null : duplicateSearch(model, s, word);
-      if (search == null) return null;
-      return Uri(
-        scheme: 'anki',
-        host: 'x-callback-url',
-        path: '/browser',
-        queryParameters: {'search': search},
-      );
+      return search == null ? null : _browser(search);
     } on AnkiException {
       return null;
     }

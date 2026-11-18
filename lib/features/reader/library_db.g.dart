@@ -113,6 +113,18 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _readingMsMeta = const VerificationMeta(
+    'readingMs',
+  );
+  @override
+  late final GeneratedColumn<int> readingMs = GeneratedColumn<int>(
+    'reading_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     hash,
@@ -125,6 +137,7 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     chapter,
     offset,
     progress,
+    readingMs,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -212,6 +225,12 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         progress.isAcceptableOrUnknown(data['progress']!, _progressMeta),
       );
     }
+    if (data.containsKey('reading_ms')) {
+      context.handle(
+        _readingMsMeta,
+        readingMs.isAcceptableOrUnknown(data['reading_ms']!, _readingMsMeta),
+      );
+    }
     return context;
   }
 
@@ -261,6 +280,10 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         DriftSqlType.double,
         data['${effectivePrefix}progress'],
       )!,
+      readingMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reading_ms'],
+      )!,
     );
   }
 
@@ -284,6 +307,9 @@ class Book extends DataClass implements Insertable<Book> {
   final int chapter;
   final int offset;
   final double progress;
+
+  /// Time spent reading this book (schema 2).
+  final int readingMs;
   const Book({
     required this.hash,
     required this.title,
@@ -295,6 +321,7 @@ class Book extends DataClass implements Insertable<Book> {
     required this.chapter,
     required this.offset,
     required this.progress,
+    required this.readingMs,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -315,6 +342,7 @@ class Book extends DataClass implements Insertable<Book> {
     map['chapter'] = Variable<int>(chapter);
     map['char_offset'] = Variable<int>(offset);
     map['progress'] = Variable<double>(progress);
+    map['reading_ms'] = Variable<int>(readingMs);
     return map;
   }
 
@@ -336,6 +364,7 @@ class Book extends DataClass implements Insertable<Book> {
       chapter: Value(chapter),
       offset: Value(offset),
       progress: Value(progress),
+      readingMs: Value(readingMs),
     );
   }
 
@@ -355,6 +384,7 @@ class Book extends DataClass implements Insertable<Book> {
       chapter: serializer.fromJson<int>(json['chapter']),
       offset: serializer.fromJson<int>(json['offset']),
       progress: serializer.fromJson<double>(json['progress']),
+      readingMs: serializer.fromJson<int>(json['readingMs']),
     );
   }
   @override
@@ -371,6 +401,7 @@ class Book extends DataClass implements Insertable<Book> {
       'chapter': serializer.toJson<int>(chapter),
       'offset': serializer.toJson<int>(offset),
       'progress': serializer.toJson<double>(progress),
+      'readingMs': serializer.toJson<int>(readingMs),
     };
   }
 
@@ -385,6 +416,7 @@ class Book extends DataClass implements Insertable<Book> {
     int? chapter,
     int? offset,
     double? progress,
+    int? readingMs,
   }) => Book(
     hash: hash ?? this.hash,
     title: title ?? this.title,
@@ -396,6 +428,7 @@ class Book extends DataClass implements Insertable<Book> {
     chapter: chapter ?? this.chapter,
     offset: offset ?? this.offset,
     progress: progress ?? this.progress,
+    readingMs: readingMs ?? this.readingMs,
   );
   Book copyWithCompanion(BooksCompanion data) {
     return Book(
@@ -413,6 +446,7 @@ class Book extends DataClass implements Insertable<Book> {
       chapter: data.chapter.present ? data.chapter.value : this.chapter,
       offset: data.offset.present ? data.offset.value : this.offset,
       progress: data.progress.present ? data.progress.value : this.progress,
+      readingMs: data.readingMs.present ? data.readingMs.value : this.readingMs,
     );
   }
 
@@ -428,7 +462,8 @@ class Book extends DataClass implements Insertable<Book> {
           ..write('lastReadAt: $lastReadAt, ')
           ..write('chapter: $chapter, ')
           ..write('offset: $offset, ')
-          ..write('progress: $progress')
+          ..write('progress: $progress, ')
+          ..write('readingMs: $readingMs')
           ..write(')'))
         .toString();
   }
@@ -445,6 +480,7 @@ class Book extends DataClass implements Insertable<Book> {
     chapter,
     offset,
     progress,
+    readingMs,
   );
   @override
   bool operator ==(Object other) =>
@@ -459,7 +495,8 @@ class Book extends DataClass implements Insertable<Book> {
           other.lastReadAt == this.lastReadAt &&
           other.chapter == this.chapter &&
           other.offset == this.offset &&
-          other.progress == this.progress);
+          other.progress == this.progress &&
+          other.readingMs == this.readingMs);
 }
 
 class BooksCompanion extends UpdateCompanion<Book> {
@@ -473,6 +510,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
   final Value<int> chapter;
   final Value<int> offset;
   final Value<double> progress;
+  final Value<int> readingMs;
   final Value<int> rowid;
   const BooksCompanion({
     this.hash = const Value.absent(),
@@ -485,6 +523,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.chapter = const Value.absent(),
     this.offset = const Value.absent(),
     this.progress = const Value.absent(),
+    this.readingMs = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BooksCompanion.insert({
@@ -498,6 +537,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.chapter = const Value.absent(),
     this.offset = const Value.absent(),
     this.progress = const Value.absent(),
+    this.readingMs = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : hash = Value(hash),
        title = Value(title),
@@ -514,6 +554,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Expression<int>? chapter,
     Expression<int>? offset,
     Expression<double>? progress,
+    Expression<int>? readingMs,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -527,6 +568,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
       if (chapter != null) 'chapter': chapter,
       if (offset != null) 'char_offset': offset,
       if (progress != null) 'progress': progress,
+      if (readingMs != null) 'reading_ms': readingMs,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -542,6 +584,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Value<int>? chapter,
     Value<int>? offset,
     Value<double>? progress,
+    Value<int>? readingMs,
     Value<int>? rowid,
   }) {
     return BooksCompanion(
@@ -555,6 +598,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
       chapter: chapter ?? this.chapter,
       offset: offset ?? this.offset,
       progress: progress ?? this.progress,
+      readingMs: readingMs ?? this.readingMs,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -592,6 +636,9 @@ class BooksCompanion extends UpdateCompanion<Book> {
     if (progress.present) {
       map['progress'] = Variable<double>(progress.value);
     }
+    if (readingMs.present) {
+      map['reading_ms'] = Variable<int>(readingMs.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -611,6 +658,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
           ..write('chapter: $chapter, ')
           ..write('offset: $offset, ')
           ..write('progress: $progress, ')
+          ..write('readingMs: $readingMs, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -639,6 +687,7 @@ typedef $$BooksTableCreateCompanionBuilder = BooksCompanion Function({
   Value<int> chapter,
   Value<int> offset,
   Value<double> progress,
+  Value<int> readingMs,
   Value<int> rowid,
 });
 typedef $$BooksTableUpdateCompanionBuilder = BooksCompanion Function({
@@ -652,6 +701,7 @@ typedef $$BooksTableUpdateCompanionBuilder = BooksCompanion Function({
   Value<int> chapter,
   Value<int> offset,
   Value<double> progress,
+  Value<int> readingMs,
   Value<int> rowid,
 });
 
@@ -710,6 +760,11 @@ class $$BooksTableFilterComposer extends Composer<_$LibraryDb, $BooksTable> {
 
   ColumnFilters<double> get progress => $composableBuilder(
     column: $table.progress,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get readingMs => $composableBuilder(
+    column: $table.readingMs,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -771,6 +826,11 @@ class $$BooksTableOrderingComposer extends Composer<_$LibraryDb, $BooksTable> {
     column: $table.progress,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get readingMs => $composableBuilder(
+    column: $table.readingMs,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BooksTableAnnotationComposer
@@ -815,6 +875,9 @@ class $$BooksTableAnnotationComposer
 
   GeneratedColumn<double> get progress =>
       $composableBuilder(column: $table.progress, builder: (column) => column);
+
+  GeneratedColumn<int> get readingMs =>
+      $composableBuilder(column: $table.readingMs, builder: (column) => column);
 }
 
 class $$BooksTableTableManager
@@ -855,6 +918,7 @@ class $$BooksTableTableManager
                 Value<int> chapter = const Value.absent(),
                 Value<int> offset = const Value.absent(),
                 Value<double> progress = const Value.absent(),
+                Value<int> readingMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BooksCompanion(
                 hash: hash,
@@ -867,6 +931,7 @@ class $$BooksTableTableManager
                 chapter: chapter,
                 offset: offset,
                 progress: progress,
+                readingMs: readingMs,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -881,6 +946,7 @@ class $$BooksTableTableManager
                 Value<int> chapter = const Value.absent(),
                 Value<int> offset = const Value.absent(),
                 Value<double> progress = const Value.absent(),
+                Value<int> readingMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BooksCompanion.insert(
                 hash: hash,
@@ -893,6 +959,7 @@ class $$BooksTableTableManager
                 chapter: chapter,
                 offset: offset,
                 progress: progress,
+                readingMs: readingMs,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

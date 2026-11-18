@@ -91,4 +91,12 @@ void main() {
       expect(Directory(repo.extractedDir(b.hash)).existsSync(), isFalse);
     },
   );
+
+  test('reading time adds up per book', () async {
+    final b = (await repo.addFromFile(epubFile('a.epub'))).book;
+    await repo.addReadingTime(b.hash, 60000);
+    await repo.addReadingTime(b.hash, 30000);
+    await repo.addReadingTime(b.hash, 0);
+    expect((await repo.watchAll().first).single.readingMs, 90000);
+  });
 }

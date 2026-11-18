@@ -4,10 +4,20 @@ import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../dictionary/ui/providers.dart' show appPathsProvider;
+import '../anki/anki_providers.dart' show cardExporterProvider;
+import '../anki/anki_settings.dart' show ankiSettingsProvider;
+import '../dictionary/ui/providers.dart' show appPathsProvider, prefsProvider;
 import 'book_repo.dart';
+import 'book_stats.dart' show blendPace;
+import 'book_view.dart' show loadEpubDetails;
+import 'epub.dart' show EpubDetails;
 import 'library_db.dart';
 import 'reader_fonts.dart';
+
+/// A book's details from its stored copy, for the details sheet.
+final bookDetailsProvider = FutureProvider.family<EpubDetails, String>(
+  (ref, hash) => loadEpubDetails(ref.watch(bookRepoProvider).epubPath(hash)),
+);
 
 // Overridden in main().
 final libraryDbProvider = Provider<LibraryDb>(
@@ -73,3 +83,28 @@ final addedFontFamilyProvider = FutureProvider.family<String?, String>((
     return null;
   }
 });
+
+/// The reader's speed in characters a minute, learnt from reading sessions
+/// (null until the first long enough one). Global, like the reader settings.
+class ReaderPace extends Notifier<int?> {
+  // .cpm: a first test run under the old name learnt from a bot's swipes.
+  static const key = 'reader.pace.cpm';
+
+  @override
+  int? build() => ref.watch(prefsProvider).getInt(key);
+
+  Future<void> learn(int sessionPace) async {
+    state = blendPace(state, sessionPace);
+    await ref.read(prefsProvider).setInt(key, state!);
+  }
+}
+
+final readerPaceProvider = NotifierProvider<ReaderPace, int?>(ReaderPace.new);
+
+/// Cards mined from the book [title] (by their Source field); null when
+/// AnkiDroid can't be asked.
+final cardsMinedProvider = FutureProvider.family<int?, String>(
+  (ref, title) => ref
+      .read(cardExporterProvider)
+      .cardsFrom(title, ref.read(ankiSettingsProvider)),
+);

@@ -31,4 +31,44 @@ void main() {
       'kept',
     );
   });
+
+  test('chapters start hidden until the reader has laid them out', () async {
+    final tmp = Directory.systemTemp.createTempSync('kotohori_extract');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final zip = Archive()
+      ..add(
+        ArchiveFile.string(
+          'Text/c.xhtml',
+          '<html><HEAD><title>t</title></HEAD><body><p>本</p></body></html>',
+        ),
+      )
+      ..add(ArchiveFile.string('Images/i.png', 'png'));
+    final epub = File(p.join(tmp.path, 'b.epub'))
+      ..writeAsBytesSync(ZipEncoder().encodeBytes(zip));
+    final dir = p.join(tmp.path, 'books', 'hash');
+    await extractEpub(epub.path, dir);
+    final chapter = File(p.join(dir, 'Text', 'c.xhtml')).readAsStringSync();
+    expect(chapter, contains('<style id="kh-hide">'));
+    expect(chapter.indexOf('kh-hide'), lessThan(chapter.indexOf('</HEAD>')));
+    expect(chapter, contains('<body><p>本</p></body>')); // text untouched
+    expect(File(p.join(dir, 'Images', 'i.png')).readAsStringSync(), 'png');
+  });
+
+  test('a folder unpacked by an older version is unpacked again', () async {
+    final tmp = Directory.systemTemp.createTempSync('kotohori_extract');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final zip = Archive()
+      ..add(ArchiveFile.string('c.xhtml', '<html><head></head><body/></html>'));
+    final epub = File(p.join(tmp.path, 'b.epub'))
+      ..writeAsBytesSync(ZipEncoder().encodeBytes(zip));
+    final dir = p.join(tmp.path, 'books', 'hash');
+    File(p.join(dir, 'c.xhtml'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync('old');
+    await extractEpub(epub.path, dir);
+    expect(
+      File(p.join(dir, 'c.xhtml')).readAsStringSync(),
+      contains('kh-hide'),
+    );
+  });
 }

@@ -14,6 +14,7 @@ Uint8List buildEpub({
   bool cover = true,
   bool encrypted = false,
   bool obfuscatedFont = false,
+  String extraMetadata = '',
   List<String> chapters = const ['<p>本文です。</p>'],
 }) {
   final root = opfInSubfolder ? 'OEBPS/' : '';
@@ -113,6 +114,7 @@ Uint8List buildEpub({
           'version="3.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
           '<dc:title>$title</dc:title>'
           '${author == null ? '' : '<dc:creator>$author</dc:creator>'}'
+          '$extraMetadata'
           '</metadata><manifest>$manifest</manifest>'
           '<spine${ncx ? ' toc="ncx"' : ''}>$spine</spine></package>',
     ),

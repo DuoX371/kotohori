@@ -16,11 +16,14 @@ import '../explain/explain_settings.dart';
 import '../explain/explain_settings_screen.dart';
 import '../player/explain_panel.dart';
 import '../player/lookup_panel.dart';
+import 'book_details_sheet.dart';
+import 'book_stats.dart' show charsRead;
 import 'book_view.dart';
 import 'library_db.dart';
 import 'position.dart';
 import 'reader_controller.dart';
 import 'reader_event.dart';
+import 'reading_clock.dart';
 import 'reader_providers.dart';
 import 'reader_settings.dart';
 import 'reader_settings_sheet.dart';
@@ -46,7 +49,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       (jsonDecode(widget.book.chapterLengths) as List).cast<int>();
   final _keys = FocusNode(debugLabel: 'reader keys');
   final _ankiChanged = ValueNotifier(0);
-  late final _lifecycle = AppLifecycleListener(onPause: _save);
+  late final _lifecycle = AppLifecycleListener(onPause: _pause);
+
+  /// Reading time and pace (see [ReadingClock]); the stopwatch is its clock.
+  final _clock = ReadingClock();
+  final _time = Stopwatch()..start();
+  int? _at; // book character the reader is at, for the clock
+  // Read once: ref can't be used in dispose(), where the last save happens.
+  late final _pace = ref.read(readerPaceProvider.notifier);
   // Read once: ref can't be used in dispose(), where the last save happens.
   late final _repo = ref.read(bookRepoProvider);
   BookViewController? _view;
@@ -79,6 +89,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void initState() {
     super.initState();
     _repo;
+    _pace;
     _lifecycle;
     c.lookup.addListener(_onLookup);
     c.explain.addListener(_rebuild);
@@ -166,6 +177,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         if (chapter != null && e.pages >= 3) {
           _charsPerPage = _lengths[chapter] / e.pages;
         }
+        if (chapter != null) {
+          _at = charsRead(_lengths, chapter: chapter, offset: e.offset);
+          _clock.at(_time.elapsed, _at!);
+        }
         setState(() => _pos = e);
         _maybeHint(); // the first page is on screen
         _saveTimer?.cancel();
@@ -196,12 +211,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _repo
         .savePosition(widget.book.hash, chapter: v.chapter, offset: v.offset)
         .ignore();
+    _repo.addReadingTime(widget.book.hash, _clock.takeReadMs()).ignore();
+  }
+
+  /// Leaving the book (app to the background or closing it): count the page
+  /// being read, save, and learn the session's pace.
+  void _pause() {
+    if (_at case final at?) _clock.at(_time.elapsed, at);
+    _clock.pause();
+    _save();
+    if (_clock.sessionPace case final pace?) _pace.learn(pace).ignore();
   }
 
   @override
   void dispose() {
     _saveTimer?.cancel();
-    _save();
+    _pause();
     _lifecycle.dispose();
     c.lookup.removeListener(_onLookup);
     c.explain.removeListener(_rebuild);
@@ -495,13 +520,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               children: [
                                 BackButton(color: theme.text),
                                 Expanded(
-                                  child: Text(
-                                    widget.book.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: theme.text,
-                                      fontSize: 16,
+                                  // The title opens the book's details.
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () =>
+                                        showBookDetails(context, widget.book),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      child: Text(
+                                        widget.book.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: theme.text,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),

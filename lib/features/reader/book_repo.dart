@@ -87,6 +87,16 @@ class BookRepo {
     );
   }
 
+  /// Adds [ms] of reading to the book's total.
+  Future<void> addReadingTime(String hash, int ms) async {
+    if (ms <= 0) return;
+    await db.customUpdate(
+      'UPDATE books SET reading_ms = reading_ms + ? WHERE hash = ?',
+      variables: [Variable(ms), Variable(hash)],
+      updates: {db.books},
+    );
+  }
+
   /// Removes the book and everything Kotohori stored for it. The user's
   /// original file is never touched.
   Future<void> remove(String hash) async {

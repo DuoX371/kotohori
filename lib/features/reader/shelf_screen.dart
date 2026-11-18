@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
@@ -11,6 +12,7 @@ import '../settings/settings_screen.dart';
 import 'epub.dart';
 import 'library_db.dart';
 import 'reader_providers.dart';
+import 'book_details_sheet.dart';
 import 'reader_screen.dart';
 
 /// The Reader tab: the user's books, most recently read first.
@@ -63,7 +65,12 @@ class ReaderShelfScreen extends ConsumerWidget {
           itemBuilder: (context, i) => _BookTile(
             list[i],
             onOpen: () => _open(context, list[i]),
-            onRemove: () => _remove(context, ref, list[i]),
+            onDetails: () => showBookDetails(
+              context,
+              list[i],
+              onContinue: () => _open(context, list[i]),
+              onRemove: () => _remove(context, ref, list[i]),
+            ),
           ),
         ),
       },
@@ -118,7 +125,8 @@ class ReaderShelfScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _remove(BuildContext context, WidgetRef ref, Book book) async {
+  /// Asks, then removes; true if the book was removed.
+  Future<bool> _remove(BuildContext context, WidgetRef ref, Book book) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -139,45 +147,85 @@ class ReaderShelfScreen extends ConsumerWidget {
         ],
       ),
     );
-    if (ok == true) await ref.read(bookRepoProvider).remove(book.hash);
+    if (ok != true) return false;
+    await ref.read(bookRepoProvider).remove(book.hash);
+    return true;
   }
 }
 
-class _BookTile extends StatelessWidget {
-  const _BookTile(this.book, {required this.onOpen, required this.onRemove});
+class _BookTile extends StatefulWidget {
+  const _BookTile(this.book, {required this.onOpen, required this.onDetails});
   final Book book;
   final VoidCallback onOpen;
-  final VoidCallback onRemove;
+
+  /// Long-press: the book's details, with Continue and Remove.
+  final VoidCallback onDetails;
+
+  @override
+  State<_BookTile> createState() => _BookTileState();
+}
+
+class _BookTileState extends State<_BookTile> {
+  var _pressed = false;
 
   @override
   Widget build(BuildContext context) {
+    final book = widget.book;
     final t = Theme.of(context);
     final percent = (book.progress * 100).floor();
+    final still = MediaQuery.disableAnimationsOf(context);
+    // No grey highlight box: while held, the cover lifts (grows a little,
+    // with a shadow), and a long-press gives a short buzz as the details open.
     return InkWell(
-      onTap: onOpen,
-      onLongPress: onRemove,
+      onTap: widget.onOpen,
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        widget.onDetails();
+      },
+      onHighlightChanged: (down) => setState(() => _pressed = down),
+      splashFactory: NoSplash.splashFactory,
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
       borderRadius: BorderRadius.circular(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: ColoredBox(
-                color: t.colorScheme.surfaceContainerHighest,
-                child: book.coverPath == null
-                    ? Icon(
-                        Icons.menu_book_outlined,
-                        size: 48,
-                        color: t.colorScheme.onSurfaceVariant,
-                      )
-                    : Image.file(
-                        File(book.coverPath!),
-                        cacheWidth: 300,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) =>
-                            const Icon(Icons.menu_book_outlined, size: 48),
+            child: AnimatedScale(
+              scale: _pressed ? 1.06 : 1,
+              duration: Duration(milliseconds: still ? 0 : 150),
+              curve: Curves.easeOut,
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: still ? 0 : 150),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    if (_pressed)
+                      const BoxShadow(
+                        color: Color(0x66000000),
+                        blurRadius: 16,
+                        offset: Offset(0, 6),
                       ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: ColoredBox(
+                    color: t.colorScheme.surfaceContainerHighest,
+                    child: book.coverPath == null
+                        ? Icon(
+                            Icons.menu_book_outlined,
+                            size: 48,
+                            color: t.colorScheme.onSurfaceVariant,
+                          )
+                        : Image.file(
+                            File(book.coverPath!),
+                            cacheWidth: 300,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                const Icon(Icons.menu_book_outlined, size: 48),
+                          ),
+                  ),
+                ),
               ),
             ),
           ),

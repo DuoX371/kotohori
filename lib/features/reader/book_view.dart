@@ -21,11 +21,20 @@ import 'reader_settings.dart';
 Future<EpubBook> loadEpub(String path) =>
     Isolate.run(() => parseEpub(File(path).readAsBytesSync()));
 
+/// The book details (title, publisher, blurb…) of the EPUB at [path], read in
+/// a background isolate. Top-level for the same reason as [loadEpub].
+Future<EpubDetails> loadEpubDetails(String path) =>
+    Isolate.run(() => epubDetails(File(path).readAsBytesSync()));
+
 /// Unpacks the stored EPUB into [dir] once (via a temporary folder, so a
 /// half-finished unpack is never mistaken for a whole one).
 Future<void> extractEpub(String epubPath, String dir) async {
-  if (Directory(dir).existsSync()) return;
+  // Marks a folder unpacked the current way; older ones are unpacked again.
+  final marker = File(p.join(dir, _unpackedMarker));
+  if (marker.existsSync()) return;
   await Isolate.run(() {
+    final old = Directory(dir);
+    if (old.existsSync()) old.deleteSync(recursive: true);
     final part = Directory('$dir.part');
     if (part.existsSync()) part.deleteSync(recursive: true);
     final root = p.normalize(part.absolute.path);
@@ -34,12 +43,31 @@ Future<void> extractEpub(String epubPath, String dir) async {
       if (!f.isFile) continue;
       final out = p.normalize(p.joinAll([root, ...f.name.split('/')]));
       if (!p.isWithin(root, out)) continue; // never write outside the folder
+      final isPage = RegExp(r'\.x?html?$', caseSensitive: false).hasMatch(out);
       File(out)
         ..createSync(recursive: true)
-        ..writeAsBytesSync(f.content);
+        ..writeAsBytesSync(isPage ? hidePage(f.content) : f.content);
     }
+    File(p.join(root, _unpackedMarker)).writeAsStringSync('');
     part.renameSync(dir);
   });
+}
+
+const _unpackedMarker = '.kotohori-unpacked-2';
+
+/// A chapter file with a style that keeps it invisible until the reader
+/// script has laid it out (it removes `#kh-hide`). Otherwise the book's own
+/// horizontal layout shows for a moment when a book opens. In the head, so
+/// the text (and reading positions) are untouched.
+List<int> hidePage(List<int> bytes) {
+  final html = utf8.decode(bytes, allowMalformed: true);
+  final head = RegExp('</head>', caseSensitive: false).firstMatch(html);
+  if (head == null) return bytes;
+  return utf8.encode(
+    '${html.substring(0, head.start)}'
+    '<style id="kh-hide">html{visibility:hidden !important}</style>'
+    '${html.substring(head.start)}',
+  );
 }
 
 class PageCover extends ValueNotifier<bool> {
