@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +19,7 @@ import '../subtitles/embedded_subtitles.dart';
 import '../subtitles/subtitle_loader.dart';
 import 'display_name.dart';
 import 'last_session.dart';
+import 'swipe_to_delete.dart';
 import '../notices/notices_button.dart';
 
 /// Start screen: pick a video and a subtitle file, then play — or restore the last one.
@@ -52,15 +55,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   static String _ext(String name) => name.toLowerCase().split('.').last;
 
-  /// A frame of the last video, grabbed by the player.
-  File get _thumbFile => File(
-    p.join(p.dirname(ref.read(appPathsProvider).dbPath), 'last_session.jpg'),
+  String get _dataDir => p.dirname(ref.read(appPathsProvider).dbPath);
+
+  /// A frame of a video, grabbed by the player; one per video in the history.
+  File _thumbFor(String videoUri) => File(
+    p.join(_dataDir, 'thumbs', '${md5.convert(utf8.encode(videoUri))}.jpg'),
   );
+
+  /// Deletes frames of videos no longer in the history.
+  Future<void> _tidyThumbs() async {
+    final keep = {
+      for (final e in ref.read(playHistoryProvider)) _thumbFor(e.videoUri).path,
+    };
+    try {
+      await for (final f in Directory(p.join(_dataDir, 'thumbs')).list()) {
+        if (!keep.contains(f.path)) await f.delete();
+      }
+    } on FileSystemException {
+      // no frames yet
+    }
+  }
 
   /// URIs whose read grants must survive a new pick.
   Iterable<String?> get _keep {
     final last = ref.read(lastSessionProvider);
-    return [_video?.uri, _subs?.uri, last?.videoUri, last?.subsUri];
+    return [
+      _video?.uri,
+      _subs?.uri,
+      last?.videoUri,
+      last?.subsUri,
+      for (final e in ref.read(playHistoryProvider)) ...[e.videoUri, e.subsUri],
+    ];
   }
 
   void _snack(String msg) =>
@@ -156,11 +181,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _play({ResumePoint? resume}) async {
     final v = _video!;
     final session = ref.read(lastSessionProvider.notifier);
-    final thumbFile = _thumbFile;
-    if (ref.read(lastSessionProvider)?.videoUri != v.uri &&
-        thumbFile.existsSync()) {
-      thumbFile.deleteSync();
-    }
+    final thumbFile = _thumbFor(v.uri);
     await session.save(
       LastSession(
         videoUri: v.uri,
@@ -187,16 +208,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           resume: resume,
           embeddedSubsTrack: embeddedTrackOf(_subs?.uri),
           onSave: session.saveResumePoint,
-          onThumbnail: (jpeg) => thumbFile.writeAsBytes(jpeg, flush: true),
+          onThumbnail: (jpeg) async {
+            await thumbFile.parent.create(recursive: true);
+            await thumbFile.writeAsBytes(jpeg, flush: true);
+          },
         ),
       ),
     );
+    await _tidyThumbs();
     await _checkRestore();
   }
 
   Future<bool> _checkRestore() async {
     final s = ref.read(lastSessionProvider);
-    final thumbFile = _thumbFile; // ref can't be used once the awaits below outlive the screen
+    // ref can't be used once the awaits below outlive the screen
+    final thumbFile = s == null ? null : _thumbFor(s.videoUri);
+    final legacy = File(p.join(_dataDir, 'last_session.jpg'));
     // Subtitles from inside the video need only the video.
     final ok =
         s != null &&
@@ -206,7 +233,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             await Documents.canOpen(s.subsUri!));
     Uint8List? thumb;
     try {
-      thumb = s == null ? null : await thumbFile.readAsBytes();
+      if (thumbFile != null && legacy.existsSync()) {
+        await thumbFile.parent.create(recursive: true);
+        await legacy.rename(thumbFile.path);
+      }
+      thumb = await thumbFile?.readAsBytes();
     } on FileSystemException {
       thumb = null;
     }
@@ -226,8 +257,108 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Future<void> _restore(LastSession s) async {
-    if (!await _checkRestore()) return _restoreFailed();
+  Future<void> _forget(LastSession s) async {
+    await ref.read(playHistoryProvider.notifier).remove(s.videoUri);
+    await _tidyThumbs();
+  }
+
+  Future<void> _restoreOlder(LastSession s) async {
+    final name = displayName(s.videoName);
+    if (!await Documents.canOpen(s.videoUri)) {
+      await _forget(s);
+      return _snack(
+        "Can't find \"$name\" any more, so it was removed from history.",
+      );
+    }
+    final subsUri = s.subsUri;
+    if (subsUri != null &&
+        embeddedTrackOf(subsUri) == null &&
+        !await Documents.canOpen(subsUri)) {
+      if (!mounted) return;
+      final play = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Can't find the subtitles"),
+          content: Text(
+            'The subtitles file for "$name" was moved, renamed or deleted.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Remove from history'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Play without subtitles'),
+            ),
+          ],
+        ),
+      );
+      if (play == null) return;
+      if (!play) return _forget(s);
+      return _restore(
+        LastSession(
+          videoUri: s.videoUri,
+          videoName: s.videoName,
+        ).withResumePoint(s.resumePoint),
+        checked: true,
+      );
+    }
+    await _restore(s, checked: true);
+  }
+
+  Future<void> _removeOlder(LastSession s) async {
+    final history = ref.read(playHistoryProvider.notifier);
+    final index = ref
+        .read(playHistoryProvider)
+        .indexWhere((e) => e.videoUri == s.videoUri);
+    await history.remove(s.videoUri);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Removed "${displayName(s.videoName)}" from history'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () => history.insert(index, s),
+          ),
+        ),
+      );
+  }
+
+  Future<void> _clearHistory() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear play history?'),
+        content: const Text(
+          'Removes every video from the list, including the last played one. Your files are not touched.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear history'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(lastSessionProvider.notifier).clear();
+    await _tidyThumbs();
+    setState(() {
+      _restorable = null;
+      _thumb = null;
+    });
+    _snack('Play history cleared');
+  }
+
+  Future<void> _restore(LastSession s, {bool checked = false}) async {
+    if (!checked && !await _checkRestore()) return _restoreFailed();
     final subsUri = s.subsUri;
     List<Cue>? cues;
     final track = embeddedTrackOf(subsUri);
@@ -265,6 +396,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final t = Theme.of(context);
     final cues = _cues;
     final last = ref.watch(lastSessionProvider);
+    final older = [
+      for (final e in ref.watch(playHistoryProvider))
+        if (e.videoUri != last?.videoUri) e,
+    ];
     final hero = _LastSessionHero(
       session: last,
       restorable: _restorable,
@@ -370,6 +505,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 20),
               pickers,
             ],
+            if (older.isNotEmpty) ...[
+              const SizedBox(height: 28),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Recently played',
+                      style: t.textTheme.titleMedium,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _clearHistory,
+                    child: const Text('Clear history'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              for (final e in older)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _HistoryTile(
+                    session: e,
+                    thumbnail: _thumbFor(e.videoUri),
+                    onTap: () => _restoreOlder(e),
+                    onDelete: () => _removeOlder(e),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
@@ -405,15 +568,7 @@ class _LastSessionHero extends StatelessWidget {
         displayName(s.videoName),
         "Can't find the files any more: moved, renamed or deleted.",
       ),
-      (final s?, _) => (
-        displayName(s.videoName),
-        switch (s.subsName) {
-          null => 'No subtitles',
-          final n when embeddedTrackOf(s.subsUri) != null =>
-            '$n, from the video',
-          final n => displayName(n),
-        },
-      ),
+      (final s?, _) => (displayName(s.videoName), _subsLine(s)),
     };
     return Card(
       child: InkWell(
@@ -516,6 +671,111 @@ class _LastSessionHero extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _subsLine(LastSession s) => switch (s.subsName) {
+  null => 'No subtitles',
+  final n when embeddedTrackOf(s.subsUri) != null => '$n, from the video',
+  final n => displayName(n),
+};
+
+class _HistoryTile extends StatelessWidget {
+  const _HistoryTile({
+    required this.session,
+    required this.thumbnail,
+    required this.onTap,
+    required this.onDelete,
+  });
+  final LastSession session;
+  final File thumbnail;
+  final VoidCallback onTap;
+
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final s = session;
+    final at = s.position >= const Duration(seconds: 1)
+        ? ' · at ${clock(s.position)}'
+        : '';
+    final blank = ColoredBox(
+      color: t.colorScheme.surfaceContainerHigh,
+      child: Icon(Icons.movie_outlined, color: t.colorScheme.onSurfaceVariant),
+    );
+    return SwipeToDelete(
+      key: ValueKey(s.videoUri),
+      onDelete: onDelete,
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: 128,
+                    height: 72,
+                    child: Image.file(
+                      thumbnail,
+                      fit: BoxFit.cover,
+                      cacheWidth: 256,
+                      errorBuilder: (_, _, _) => blank,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName(s.videoName),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            s.subsName == null
+                                ? Icons.subtitles_off_outlined
+                                : Icons.subtitles_outlined,
+                            size: 16,
+                            color: t.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '${_subsLine(s)}$at',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: t.textTheme.bodyMedium?.copyWith(
+                                color: t.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.play_arrow_rounded,
+                  color: t.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
           ),
         ),
       ),

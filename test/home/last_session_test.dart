@@ -79,4 +79,63 @@ void main() {
       isNull,
     );
   });
+
+  LastSession ep(int n) =>
+      LastSession(videoUri: 'content://v$n', videoName: 'ep$n.mkv');
+  List<String> uris(ProviderContainer c) => [
+    for (final e in c.read(playHistoryProvider)) e.videoUri,
+  ];
+
+  test('history: newest first, one per video, keeps 10', () async {
+    final c = await container();
+    final n = c.read(lastSessionProvider.notifier);
+    for (var i = 1; i <= 12; i++) {
+      await n.save(ep(i));
+    }
+    await n.save(ep(5)); // played again: back on top, not twice
+    expect(uris(c).first, 'content://v5');
+    expect(uris(c), hasLength(10));
+    expect(uris(c).where((u) => u == 'content://v5'), hasLength(1));
+    expect(uris(c), isNot(contains('content://v1')));
+
+    await n.saveResumePoint((
+      position: const Duration(minutes: 2),
+      offset: Duration.zero,
+      subtitlesOn: true,
+      sync: const [],
+    ));
+    expect(
+      c.read(playHistoryProvider).first.position,
+      const Duration(minutes: 2),
+    );
+
+    final h = c.read(playHistoryProvider.notifier);
+    final before = uris(c);
+    final third = c.read(playHistoryProvider)[2];
+    await h.remove(third.videoUri);
+    expect(uris(c), isNot(contains(third.videoUri)));
+    await h.insert(2, third); // Undo
+    expect(uris(c), before);
+  });
+
+  test('history starts from the last video of an older version', () async {
+    final c = await container({
+      'session.last': '{"videoUri":"content://old","videoName":"old.mkv"}',
+    });
+    expect(uris(c), ['content://old']);
+  });
+
+  test('clear forgets the last video and the history', () async {
+    var c = await container();
+    final n = c.read(lastSessionProvider.notifier);
+    await n.save(ep(1));
+    await n.save(ep(2));
+    await n.clear();
+    expect(c.read(lastSessionProvider), isNull);
+    expect(uris(c), isEmpty);
+    final prefs = await SharedPreferences.getInstance();
+    c = ProviderContainer(overrides: [prefsProvider.overrideWithValue(prefs)]);
+    expect(c.read(lastSessionProvider), isNull);
+    expect(uris(c), isEmpty);
+  });
 }

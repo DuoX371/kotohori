@@ -101,8 +101,58 @@ class LastSessionNotifier extends Notifier<LastSession?> {
   Future<void> save(LastSession s) async {
     state = s;
     await ref.read(prefsProvider).setString(_key, jsonEncode(s.toJson()));
+    await ref.read(playHistoryProvider.notifier).add(s);
+  }
+
+  Future<void> clear() async {
+    state = null;
+    await ref.read(prefsProvider).remove(_key);
+    await ref.read(playHistoryProvider.notifier).clear();
   }
 }
+
+class PlayHistoryNotifier extends Notifier<List<LastSession>> {
+  static const _key = 'session.history';
+  static const max = 10;
+
+  @override
+  List<LastSession> build() {
+    try {
+      final raw = ref.watch(prefsProvider).getString(_key);
+      if (raw == null) return [?ref.read(lastSessionProvider)];
+      return [
+        for (final j in jsonDecode(raw) as List<dynamic>)
+          if (j is Map<String, Object?>) ?LastSession.fromJson(j),
+      ];
+    } on FormatException {
+      return const [];
+    }
+  }
+
+  Future<void> add(LastSession s) => _set(
+    [s, ...state.where((e) => e.videoUri != s.videoUri)].take(max).toList(),
+  );
+
+  Future<void> remove(String videoUri) =>
+      _set(state.where((e) => e.videoUri != videoUri).toList());
+
+  Future<void> insert(int index, LastSession s) =>
+      _set([...state]..insert(index.clamp(0, state.length), s));
+
+  Future<void> clear() => _set(const []);
+
+  Future<void> _set(List<LastSession> list) async {
+    state = list;
+    await ref
+        .read(prefsProvider)
+        .setString(_key, jsonEncode([for (final e in list) e.toJson()]));
+  }
+}
+
+final playHistoryProvider =
+    NotifierProvider<PlayHistoryNotifier, List<LastSession>>(
+      PlayHistoryNotifier.new,
+    );
 
 final lastSessionProvider = NotifierProvider<LastSessionNotifier, LastSession?>(
   LastSessionNotifier.new,
