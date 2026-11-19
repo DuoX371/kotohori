@@ -10,6 +10,7 @@ import '../subtitles/auto_sync.dart';
 import '../subtitles/cue.dart';
 import '../subtitles/timeline.dart';
 import 'lookup_session.dart';
+import 'player_toast.dart';
 
 /// Where playback stopped, plus subtitle sync and on/off: restored with the last session.
 typedef ResumePoint = ({
@@ -45,6 +46,7 @@ class PlayerController extends ChangeNotifier {
   List<SyncSegment> sync = const [];
   final LookupSession lookup;
   final ExplainSession explain;
+  final toast = PlayerToast();
   final bool Function() pauseOnLookup;
   late final StreamSubscription<Duration> _sub;
 
@@ -246,6 +248,7 @@ class PlayerController extends ChangeNotifier {
     _sub.cancel();
     lookup.dispose();
     explain.dispose();
+    toast.dispose();
     player.dispose();
     super.dispose();
   }

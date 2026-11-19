@@ -29,6 +29,7 @@ import 'player_options_sheet.dart';
 import 'seek_flash.dart';
 import 'subtitle_overlay.dart';
 import 'tap_seeker.dart';
+import 'player_toast.dart';
 
 /// After a pinch from zoom [start] to [now] (0 fit … 1 fill): fill or fit?
 /// A clear pinch goes the way the fingers moved; a small one snaps back.
@@ -119,12 +120,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     }
     final targets = c.explainTargets;
     if (targets.isEmpty) {
-      ScaffoldMessenger.of(_scaffold.currentContext!)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(content: Text('No subtitle line to explain here')),
-        );
-      return;
+      return c.toast.show('No subtitle line to explain here');
     }
     await c.openExplain(
       targets,
@@ -225,14 +221,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _zoom.animateTo(fill ? 1 : 0, curve: Curves.easeOutCubic);
     if (fill == ref.read(videoFillProvider)) return;
     ref.read(videoFillProvider.notifier).set(fill);
-    ScaffoldMessenger.of(_scaffold.currentContext!)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(fill ? 'Fill screen' : 'Fit to screen'),
-          duration: const Duration(seconds: 1),
-        ),
-      );
+    c.toast.show(
+      fill ? 'Fill screen' : 'Fit to screen',
+      duration: const Duration(seconds: 1),
+    );
   }
 
   late final _lifecycle = AppLifecycleListener(onHide: _save);
@@ -408,16 +400,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   /// Lines the subtitles up with a text track inside the video (English if there is one).
   Future<void> _autoSync() async {
-    final messenger = ScaffoldMessenger.of(_scaffold.currentContext!);
-    void say(
-      String text, {
-      SnackBarAction? action,
-      Duration duration = const Duration(seconds: 4),
-    }) => messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(text), action: action, duration: duration),
-      );
+    final say = c.toast.show;
     say(
       'Matching with the subtitles inside the video…',
       duration: const Duration(minutes: 1),
@@ -514,10 +497,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   /// Copies the frame on screen, with the subtitles if they're showing, to share.
   Future<void> _copyScene() async {
-    final messenger = ScaffoldMessenger.of(_scaffold.currentContext!);
-    void say(String text) => messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+    final say = c.toast.show;
     try {
       final frame = await c.player.screenshot(format: 'image/jpeg');
       if (frame == null) throw StateError('no frame');
@@ -713,6 +693,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   height: panelHeight,
                   child: _panel(open, const Offset(0, 1)),
                 ),
+          // Under the top bar, clear of the play controls; above the popup.
+          Positioned(
+            top: 0,
+            left: 16,
+            right: 16,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.only(top: kToolbarHeight),
+                child: PlayerToastView(c.toast),
+              ),
+            ),
+          ),
         ],
       ],
     );

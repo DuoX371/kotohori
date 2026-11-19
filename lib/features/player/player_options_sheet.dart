@@ -42,7 +42,6 @@ Future<void> showPlayerOptions(
 
 /// Full list of lines; picking one makes it start at the current position.
 Future<void> showSyncPicker(BuildContext context, PlayerController c) {
-  final messenger = ScaffoldMessenger.of(context);
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -66,13 +65,9 @@ Future<void> showSyncPicker(BuildContext context, PlayerController c) {
                 onPick: (cue) {
                   c.syncCueToNow(cue);
                   Navigator.pop(sheetContext);
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Synced · offset ${formatOffset(c.timeline.offset)}',
-                      ),
-                      duration: const Duration(seconds: 2),
-                    ),
+                  c.toast.show(
+                    'Synced · offset ${formatOffset(c.timeline.offset)}',
+                    duration: const Duration(seconds: 2),
                   );
                 },
               ),
