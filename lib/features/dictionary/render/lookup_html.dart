@@ -48,12 +48,15 @@ class LookupHtmlBuilder {
       _cssCache[(d.id, d.revision)] ??= scopeCss(d.stylesCss, d.title);
 
   /// [addButtons]: adds a ＋ per word that posts its group index to the
-  /// `Kotohori` JavaScript channel (only our own handler; dictionary HTML is sanitized).
+  /// `Kotohori` JavaScript channel (only our own handler; dictionary HTML is sanitized),
+  /// and, with [quickAdd] (Anki set up), a quick add button (card with plus)
+  /// beside it that posts "quick:index".
   /// [dark]: the app's theme (not the system's, which can differ).
   String page(
     LookupResult result, {
     String? emptyMessage,
     bool addButtons = false,
+    bool quickAdd = false,
     bool dark = false,
   }) {
     final dicts = <int, Dictionary>{};
@@ -68,6 +71,12 @@ class LookupHtmlBuilder {
       if (addButtons) {
         body.write(
           '<button class="add" data-i="$i" aria-label="Add to Anki" onclick="Kotohori.postMessage(\'$i\')">＋</button>',
+        );
+      }
+      if (addButtons && quickAdd) {
+        body.write(
+          '<button class="add quick" data-i="$i" aria-label="Quick add to Anki" title="Quick add to Anki"'
+          ' onclick="this.disabled=true;Kotohori.postMessage(\'quick:$i\')">$_cardPlus</button>',
         );
       }
       body.write('<h2>');
@@ -130,6 +139,11 @@ class LookupHtmlBuilder {
   }
 }
 
+/// Material "library_add": a card with a plus.
+const _cardPlus =
+    '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true">'
+    '<path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/></svg>';
+
 String _freqLabel(Object? d) => switch (d) {
   {'frequency': final f} => _freqLabel(f),
   {'displayValue': final String v} => v,
@@ -153,6 +167,10 @@ rt { font-size:.5em; color:var(--muted); }
 img { max-width:100%; }
 .add { float:right; font-size:1.3em; line-height:1; width:2em; height:2em; border:0; border-radius:50%;
   background:var(--chip); color:var(--fg); margin:4px 0 0 8px; }
+/* Quick add: straight to Anki, no editor. Pulses while sending. */
+.add.quick { display:inline-flex; align-items:center; justify-content:center; font-size:1.05em; width:2.476em; height:2.476em; }
+.add.quick:disabled { animation: kh-pulse 1s ease-in-out infinite; }
+@keyframes kh-pulse { 50% { opacity:.35; } }
 /* Already in Anki: a book beside ＋ that opens the cards in AnkiDroid. */
 .add.in-anki { background:transparent; border:1.5px solid #c9a24a; color:#c9a24a; font-size:1.05em; width:2.476em; height:2.476em;
   display:inline-flex; align-items:center; justify-content:center; }

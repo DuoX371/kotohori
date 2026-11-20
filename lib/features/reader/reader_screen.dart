@@ -9,6 +9,7 @@ import '../../app/theme.dart';
 import '../anki/anki_providers.dart';
 import '../anki/anki_settings.dart';
 import '../anki/card_editor_screen.dart';
+import '../anki/card_exporter.dart' show CardDraft;
 import '../dictionary/ui/providers.dart'
     show htmlBuilderProvider, lookupProvider, prefsProvider;
 import '../explain/explain_request.dart';
@@ -236,19 +237,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     super.dispose();
   }
 
-  Future<void> _addCard(int groupIndex, List<String>? existingDecks) async {
+  /// The card for the word at [groupIndex] of the popup.
+  CardDraft? _draft(int groupIndex) {
     final result = c.lookup.result, h = c.lookup.highlight, t = c.lastTap;
     if (result == null ||
         h == null ||
         t == null ||
         groupIndex >= result.groups.length) {
-      return;
+      return null;
     }
     final group = result.groups[groupIndex];
     final (_, start, highlighted) = h;
     final sentence = sentenceAt(t.text, start);
     final settings = ref.read(ankiSettingsProvider);
-    final draft = ref
+    return ref
         .read(cardExporterProvider)
         .prepare(
           settings: settings,
@@ -267,11 +269,31 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               ),
           videoTitle: widget.book.title,
         );
+  }
+
+  Future<void> _addCard(int groupIndex, List<String>? existingDecks) async {
+    final draft = _draft(groupIndex);
+    if (draft == null) return;
     draft.existingDecks = existingDecks;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => CardEditorScreen(draft: draft)),
     );
     _ankiChanged.value++;
+  }
+
+  /// Quick add in the popup: adds the card at once, skipping the editor.
+  Future<bool> _quickAdd(int groupIndex) async {
+    final draft = _draft(groupIndex);
+    if (draft == null) return false;
+    final messenger = ScaffoldMessenger.of(context);
+    final (added, message) = await ref
+        .read(cardExporterProvider)
+        .quickSend(draft, ref.read(ankiSettingsProvider));
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+    if (added && mounted) _ankiChanged.value++;
+    return added;
   }
 
   Future<void> _explain() async {
@@ -394,6 +416,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               c.lookup,
               onClose: c.lookup.close,
               onAdd: _addCard,
+              onQuickAdd: _quickAdd,
               ankiChanged: _ankiChanged,
               dark: dark,
             )

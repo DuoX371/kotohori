@@ -9,6 +9,16 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Added
+
+- Player history
+- Player videoes can now be zoomed
+- Quick add to anki button in popup dictionary
+
+### Fixed
+
+- Fixed player popup overlapping with play button
+
 ## [0.2.1] - 2026-11-19
 
 ### Fixed

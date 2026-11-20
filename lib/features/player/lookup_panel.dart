@@ -22,6 +22,7 @@ class LookupPanel extends ConsumerStatefulWidget {
     super.key,
     required this.onClose,
     required this.onAdd,
+    required this.onQuickAdd,
     this.ankiChanged,
     this.dark = true,
   });
@@ -35,6 +36,10 @@ class LookupPanel extends ConsumerStatefulWidget {
   /// ＋ tapped on the word at this index of the current result; [decks]: where
   /// its existing cards are (null: no card yet).
   final void Function(int index, List<String>? decks) onAdd;
+
+  /// Quick add tapped: add the word at this index straight to Anki, no editor.
+  /// Returns whether it was added (if not, quick add can be tapped again).
+  final Future<bool> Function(int index) onQuickAdd;
 
   /// Fires after a card was added, to re-check which words are in Anki.
   final Listenable? ankiChanged;
@@ -51,11 +56,21 @@ class _LookupPanelState extends ConsumerState<LookupPanel> {
     ..addJavaScriptChannel(
       'Kotohori',
       onMessageReceived: (m) {
-        // "3": add a card for word 3; "open:3": show its cards in AnkiDroid.
-        final open = m.message.startsWith('open:');
-        final i = int.tryParse(open ? m.message.substring(5) : m.message);
+        // "3": add a card for word 3; "quick:3": add it without the editor;
+        // "open:3": show its cards in AnkiDroid.
+        final [kind, n] = m.message.contains(':')
+            ? m.message.split(':')
+            : ['add', m.message];
+        final i = int.tryParse(n);
         if (i == null) return;
-        open ? _openInAnki(i) : widget.onAdd(i, _inAnki[i]);
+        switch (kind) {
+          case 'open':
+            _openInAnki(i);
+          case 'quick':
+            _quickAdd(i);
+          default:
+            widget.onAdd(i, _inAnki[i]);
+        }
       },
     )
     ..setNavigationDelegate(
@@ -110,6 +125,18 @@ class _LookupPanelState extends ConsumerState<LookupPanel> {
     }
   }
 
+  Future<void> _quickAdd(int index) async {
+    final shown = _shown;
+    if (await widget.onQuickAdd(index) || !identical(shown, _shown)) return;
+    // Not added: quick add works again (on success the re-check swaps it for the book).
+    await _web.runJavaScript(
+      '{ const q = document.querySelector(\'button.quick[data-i="$index"]\'); if (q) q.disabled = false; }',
+    );
+    // It may have been refused because a card arrived since the popup opened
+    // (say, synced from another device): re-check so it shows as in Anki.
+    _checkAnki();
+  }
+
   Future<void> _checkAnki() async {
     final r = _shown;
     if (r == null) return;
@@ -129,12 +156,15 @@ class _LookupPanelState extends ConsumerState<LookupPanel> {
       for (final e in _inAnki.entries)
         '${e.key}': e.value.map(_deckLabel).join(', '),
     };
-    _web.runJavaScript('''
+    // In a block: top-level consts would clash the next time this runs on the page.
+    _web.runJavaScript('''{
 const book = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/></svg>';
 for (const [i, decks] of Object.entries(${jsonEncode(marks)})) {
   const add = document.querySelector('button.add[data-i="' + i + '"]');
   if (!add || add.dataset.inAnki) continue;
   add.dataset.inAnki = '1';
+  // Already has a card: no quick add, only ＋ (which asks nothing more).
+  add.parentElement.querySelector('button.quick')?.remove();
   add.title = 'Add another card to Anki';
   add.setAttribute('aria-label', add.title);
   // After ＋ in the page, so it floats to its left.
@@ -150,7 +180,7 @@ for (const [i, decks] of Object.entries(${jsonEncode(marks)})) {
   note.innerHTML = book + ' In Anki: ';
   note.appendChild(document.createTextNode(decks));
   b.parentElement.querySelector('h2').after(note);
-}''');
+}}''');
   }
 
   /// "Real Mining::Test" → "Real Mining › Test".
@@ -188,6 +218,7 @@ for (const [i, decks] of Object.entries(${jsonEncode(marks)})) {
             r,
             emptyMessage: ref.read(emptyLookupMessageProvider),
             addButtons: true,
+            quickAdd: ref.read(ankiSettingsProvider).isConfigured,
             dark: widget.dark,
           ),
       baseUrl: dictionaryPageBase,

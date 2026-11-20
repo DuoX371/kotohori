@@ -180,20 +180,22 @@ void main() {
     },
   );
 
-  test('popup page adds one ＋ per word only when asked', () async {
+  test('popup page adds one ＋ and one quick add (if Anki is set up) per word only when asked', () async {
     final env = await TestEnv.create();
     addTearDown(env.dispose);
     await env.import('mini_a');
     final r = await Lookup(env.repo).lookup('日本語', 0); // 日本語 + 日本
     final b = LookupHtmlBuilder(mediaRoot: env.mediaRoot);
     expect(b.page(r), isNot(contains('Kotohori.postMessage')));
-    final withButtons = b.page(r, addButtons: true);
+    expect(b.page(r, addButtons: true), isNot(contains("postMessage('quick:")));
+    final withButtons = b.page(r, addButtons: true, quickAdd: true);
     expect(
       "'0'".allMatches(withButtons).length +
           "'1'".allMatches(withButtons).length,
       2,
     );
     expect(withButtons, contains("Kotohori.postMessage('1')"));
+    expect(withButtons, contains("Kotohori.postMessage('quick:1')"));
   });
 
   test('result page renders fixture entry with scoped dictionary CSS and inlined media', () async {

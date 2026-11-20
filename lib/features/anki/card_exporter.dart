@@ -432,6 +432,24 @@ class CardExporter {
     }
   }
 
+  /// Quick add: sends [d] without the editor (never as a duplicate), then
+  /// cleans it up. Returns whether it was added and what to tell the user.
+  Future<(bool, String)> quickSend(CardDraft d, AnkiSettings s) async {
+    try {
+      await send(d, s);
+      return (true, 'Added "${d.word}" to Anki');
+    } on DuplicateNoteException {
+      return (false, '"${d.word}" is already in Anki');
+    } on AnkiException catch (e) {
+      return (false, e.message);
+    } catch (_) {
+      return (false, "Couldn't add \"${d.word}\" to Anki");
+    } finally {
+      await discard(d);
+      d.dispose();
+    }
+  }
+
   /// Removes temporary media files of a finished or cancelled card.
   /// Waits for media still being made, so nothing is left behind.
   Future<void> discard(CardDraft d) async {

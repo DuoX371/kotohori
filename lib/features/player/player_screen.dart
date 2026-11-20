@@ -10,6 +10,7 @@ import '../../platform/pip.dart';
 import '../anki/anki_providers.dart';
 import '../anki/anki_settings.dart';
 import '../anki/card_editor_screen.dart';
+import '../anki/card_exporter.dart' show CardDraft;
 import '../dictionary/ui/providers.dart'
     show appPathsProvider, htmlBuilderProvider, lookupProvider;
 import '../explain/explain_request.dart';
@@ -548,17 +549,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// Bumped when the card editor closes, so the popup re-checks what's in Anki.
   final _ankiChanged = ValueNotifier(0);
 
-  Future<void> _addCard(int groupIndex, List<String>? existingDecks) async {
+  /// The card for the word at [groupIndex] of the popup, its media being made.
+  CardDraft? _draft(int groupIndex) {
     final result = c.lookup.result, h = c.lookup.highlight;
     if (result == null || h == null || groupIndex >= result.groups.length) {
-      return;
+      return null;
     }
     final group = result.groups[groupIndex];
     final (cueIndex, start, highlighted) = h;
     final cue = c.timeline.cues[cueIndex];
     final settings = ref.read(ankiSettingsProvider);
     c.player.pause();
-    final draft = ref
+    return ref
         .read(cardExporterProvider)
         .prepare(
           settings: settings,
@@ -584,11 +586,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           videoSource: widget.videoUri,
           screenshot: () => c.cardFrame(cue),
         );
+  }
+
+  Future<void> _addCard(int groupIndex, List<String>? existingDecks) async {
+    final draft = _draft(groupIndex);
+    if (draft == null) return;
     draft.existingDecks = existingDecks;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => CardEditorScreen(draft: draft)),
     );
     _ankiChanged.value++;
+  }
+
+  /// Quick add in the popup: adds the card at once, skipping the editor.
+  Future<bool> _quickAdd(int groupIndex) async {
+    final draft = _draft(groupIndex);
+    if (draft == null) return false;
+    final (added, message) = await ref
+        .read(cardExporterProvider)
+        .quickSend(draft, ref.read(ankiSettingsProvider));
+    if (!mounted) return added;
+    c.toast.show(message, duration: const Duration(seconds: 2));
+    if (added) _ankiChanged.value++;
+    return added;
   }
 
   /// Copies the frame on screen, with the subtitles if they're showing, to share.
@@ -834,6 +854,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               c.lookup,
               onClose: c.closeLookup,
               onAdd: _addCard,
+              onQuickAdd: _quickAdd,
               ankiChanged: _ankiChanged,
             )
           : const SizedBox.shrink(),
