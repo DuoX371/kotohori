@@ -29,7 +29,7 @@ void main() {
     );
   }
 
-  test('Classic is the Japanese vocab note type plus sentence audio under the sentence', () {
+  test('Classic is the Japanese vocab note type plus sentence audio under the sentence and source', () {
     expect(classicDesign.fields, [
       'Word',
       'Furigana',
@@ -39,6 +39,7 @@ void main() {
       'image',
       'sentence',
       'SentenceAudio',
+      'Source',
     ]);
     expect(
       classicDesign.back.indexOf('{{SentenceAudio}}'),

@@ -36,6 +36,35 @@ import 'player_toast.dart';
 bool pinchSnapsToFill(double start, double now) =>
     (now - start).abs() > 0.1 ? now > start : start > 0.5;
 
+/// Furthest pinch-zoom, in times the fitted picture (as YouTube).
+const maxZoom = 8.0;
+
+/// Where a pinch ends up: Fit (1) or Fill ([fill]) when it stops near them,
+/// otherwise the free zoom it stopped at. [start]/[now] are scales, 1 = fit.
+double zoomTarget(double start, double now, double fill) {
+  if (now > fill * 1.15) return now;
+  if (fill <= 1.001) return 1;
+  double t(double s) => ((s - 1) / (fill - 1)).clamp(0.0, 1.0);
+  return pinchSnapsToFill(t(start), t(now)) ? fill : 1;
+}
+
+/// Size of a [w]×[h] video fitted whole on [screen] (scale 1).
+Size fittedSize(Size screen, int? w, int? h) {
+  if (w == null || h == null || w == 0 || h == 0) return screen;
+  final video = w / h;
+  return video > screen.width / screen.height
+      ? Size(screen.width, screen.width / video)
+      : Size(screen.height * video, screen.height);
+}
+
+/// Keeps a picture of [fitted] size at [scale], moved by [pan] from the
+/// centre, from sliding past its edges (centred on an axis it doesn't fill).
+Offset clampPan(Offset pan, Size screen, Size fitted, double scale) {
+  final x = ((fitted.width * scale - screen.width) / 2).clamp(0.0, 1e9);
+  final y = ((fitted.height * scale - screen.height) / 2).clamp(0.0, 1e9);
+  return Offset(pan.dx.clamp(-x, x), pan.dy.clamp(-y, y));
+}
+
 /// Height of the black bar under a [w]×[h] video shown at [scale] (1 = fit) on
 /// [screen]; 0 when the picture reaches the bottom edge or the size is unknown.
 double letterboxBottom(Size screen, int? w, int? h, double scale) {
@@ -190,14 +219,56 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     }
   }
 
-  /// Zoom between fit (0: whole picture, black bars) and fill (1: no bars,
-  /// edges cropped). Follows the fingers while pinching, then glides to one.
-  late final _zoom = AnimationController(
+  /// The picture's zoom (1 = fit: whole picture, black bars) and how far it
+  /// is moved from the centre. Follows the fingers while pinching; on release
+  /// glides to Fit or Fill if near them.
+  late final _view = ValueNotifier<(double, Offset)>((
+    ref.read(videoFillProvider) ? _fillScale(_screen) : 1,
+    Offset.zero,
+  ));
+
+  late final _glide = AnimationController(
     vsync: this,
-    value: ref.read(videoFillProvider) ? 1 : 0,
     duration: const Duration(milliseconds: 220),
-  );
-  double _zoomAtStart = 0;
+  )..addListener(_glideStep);
+  (double, Offset) _glideFrom = (1, Offset.zero), _glideTo = (1, Offset.zero);
+
+  void _glideStep() {
+    final t = Curves.easeOutCubic.transform(_glide.value);
+    _view.value = (
+      _glideFrom.$1 + (_glideTo.$1 - _glideFrom.$1) * t,
+      Offset.lerp(_glideFrom.$2, _glideTo.$2, t)!,
+    );
+  }
+
+  double _scaleAtStart = 1;
+  Offset _panAtStart = Offset.zero, _focusAtStart = Offset.zero;
+
+  Size get _screen => MediaQuery.sizeOf(context);
+  Size? _viewScreen;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_screen != _viewScreen) {
+      final first = _viewScreen == null;
+      _viewScreen = _screen;
+      if (!first) _resetView(); // turned, or the mini player came and went
+    }
+  }
+
+  Size _fitted(Size screen) {
+    final s = c.player.state;
+    return fittedSize(screen, s.width, s.height);
+  }
+
+  void _resetView() {
+    _glide.stop();
+    _view.value = (
+      ref.read(videoFillProvider) ? _fillScale(_screen) : 1,
+      Offset.zero,
+    );
+  }
 
   /// How much the fitted picture must grow to fill the screen (1: same shape).
   double _fillScale(Size screen) {
@@ -208,21 +279,42 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     return video > box ? video / box : box / video;
   }
 
+  void _onPinchStart(ScaleStartDetails d) {
+    _glide.stop();
+    _scaleAtStart = _view.value.$1;
+    _panAtStart = _view.value.$2;
+    _focusAtStart = d.localFocalPoint;
+  }
+
   void _onPinchUpdate(ScaleUpdateDetails d) {
-    if (d.pointerCount < 2) return;
-    final full = _fillScale(MediaQuery.sizeOf(context));
-    if (full <= 1.001) return;
-    final startScale = 1 + _zoomAtStart * (full - 1);
-    _zoom.value = ((startScale * d.scale - 1) / (full - 1)).clamp(0.0, 1.0);
+    final screen = _screen;
+    final zoomed = _scaleAtStart > _fillScale(screen) * 1.01;
+    if (d.pointerCount < 2 && !zoomed) return;
+    final scale = (_scaleAtStart * (d.pointerCount < 2 ? 1 : d.scale)).clamp(
+      1.0,
+      maxZoom,
+    );
+    final centre = screen.center(Offset.zero);
+    final spot = (_focusAtStart - centre - _panAtStart) / _scaleAtStart;
+    final pan = d.localFocalPoint - centre - spot * scale;
+    _view.value = (scale, clampPan(pan, screen, _fitted(screen), scale));
   }
 
   void _onPinchEnd() {
-    final fill = pinchSnapsToFill(_zoomAtStart, _zoom.value);
-    _zoom.animateTo(fill ? 1 : 0, curve: Curves.easeOutCubic);
-    if (fill == ref.read(videoFillProvider)) return;
-    ref.read(videoFillProvider.notifier).set(fill);
+    final screen = _screen, fill = _fillScale(screen);
+    final (scale, pan) = _view.value;
+    final to = zoomTarget(_scaleAtStart, scale, fill);
+    _glideFrom = (scale, pan);
+    _glideTo = (to, clampPan(pan, screen, _fitted(screen), to));
+    _glide.forward(from: 0);
+    setState(() {});
+    if (to > fill * 1.01) return;
+    final filled = to > 1;
+    final wasSnapped = _scaleAtStart <= fill * 1.01;
+    if (wasSnapped && filled == ref.read(videoFillProvider)) return;
+    ref.read(videoFillProvider.notifier).set(filled);
     c.toast.show(
-      fill ? 'Fill screen' : 'Fit to screen',
+      filled ? 'Fill screen' : 'Fit to screen',
       duration: const Duration(seconds: 1),
     );
   }
@@ -270,9 +362,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       // The video's size decides how far "fill" zooms.
       c.player.stream.width.listen((_) {
         _updatePip();
-        if (mounted) setState(() {});
+        if (mounted) setState(_resetView);
       }),
-      c.player.stream.height.listen((_) => _updatePip()),
+      c.player.stream.height.listen((_) {
+        _updatePip();
+        if (mounted) setState(_resetView);
+      }),
       c.player.stream.position.listen((pos) {
         if (_error != null && (pos - _errorAt).abs() > _errorClears) {
           setState(() => _error = null);
@@ -325,7 +420,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _keys.dispose();
     _singleTap?.cancel();
     _flashOff?.cancel();
-    _zoom.dispose();
+    _glide.dispose();
+    _view.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(
       [],
@@ -590,7 +686,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       size,
       s.width,
       s.height,
-      ref.watch(videoFillProvider) ? _fillScale(size) : 1,
+      _glide.isAnimating ? _glideTo.$1 : _view.value.$1,
     );
     final subtitleBottom = (open && !wide)
         ? panelHeight + 16
@@ -601,12 +697,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       children: [
         // First, and kept in the mini player too, so the video never re-attaches.
         ClipRect(
-          child: AnimatedBuilder(
-            animation: _zoom,
-            builder: (context, video) => Transform.scale(
-              scale: _pip ? 1 : 1 + _zoom.value * (_fillScale(size) - 1),
-              child: video,
-            ),
+          child: ValueListenableBuilder(
+            valueListenable: _view,
+            builder: (context, view, video) => _pip
+                ? video!
+                : Transform.translate(
+                    offset: view.$2,
+                    child: Transform.scale(scale: view.$1, child: video),
+                  ),
             child: Video(
               controller: c.video,
               controls: NoVideoControls,
@@ -636,10 +734,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTapUp: _onTapUp,
-            onScaleStart: (_) {
-              _zoom.stop();
-              _zoomAtStart = _zoom.value;
-            },
+            onScaleStart: _onPinchStart,
             onScaleUpdate: _onPinchUpdate,
             onScaleEnd: (_) => _onPinchEnd(),
           ),

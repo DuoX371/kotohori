@@ -76,11 +76,11 @@ img { max-width: 100%; }
 const noteDesigns = [classicDesign, modernDesign, cinemaDesign, focusDesign];
 
 /// The user's own "Japanese" vocab note type, unchanged, plus a SentenceAudio field
-/// played under the sentence.
+/// played under the sentence and a Source line at the bottom.
 const classicDesign = NoteDesign(
   name: 'Kotohori Classic',
   cardName: 'Vocab',
-  credit: 'Based on the vocab card template by Trenton (トレントン), with sentence audio added.',
+  credit: 'Based on the vocab card template by Trenton (トレントン), with sentence audio and source added.',
   fieldMap: {
     'Word': CardSource.word,
     'Furigana': CardSource.reading,
@@ -90,11 +90,13 @@ const classicDesign = NoteDesign(
     'image': CardSource.image,
     'sentence': CardSource.sentence,
     'SentenceAudio': CardSource.audio,
+    'Source': CardSource.source,
   },
   css: '''
 /* Based on the vocab card template by Trenton (トレントン),
    "You Should Be Using Anki": https://youtu.be/_MWtbI4IwfU?t=859
-   Kotohori Classic adds a SentenceAudio field under the sentence. */
+   Kotohori Classic adds a SentenceAudio field under the sentence
+   and a Source line at the bottom. */
 .card {
  font-size: 23px;
  text-align: center;
@@ -129,7 +131,8 @@ const classicDesign = NoteDesign(
 <div style='font-family: Noto; font-size: 14px;'>{{sentence}}</div>
 <div style='font-family: Noto; font-size: 20px;'>{{SentenceAudio}}</div>
 <div> ----</div>
-<div style='font-family: Noto; font-size: 20px;'>{{image}}</div>''',
+<div style='font-family: Noto; font-size: 20px;'>{{image}}</div>
+{{#Source}}<div style='font-family: Noto; font-size: 14px; opacity: 0.6; margin-top: 12px;'>{{Source}}</div>{{/Source}}''',
 );
 
 /// Word and sentence up front, everything else on the back.
