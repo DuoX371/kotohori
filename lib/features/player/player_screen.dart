@@ -592,9 +592,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final draft = _draft(groupIndex);
     if (draft == null) return;
     draft.existingDecks = existingDecks;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => CardEditorScreen(draft: draft)),
+    final added = await Navigator.of(context).push(
+      MaterialPageRoute<bool>(builder: (_) => CardEditorScreen(draft: draft)),
     );
+    if (added == true && mounted) {
+      c.toast.show(
+        'Added "${draft.word}" to Anki',
+        duration: const Duration(seconds: 2),
+      );
+    }
     _ankiChanged.value++;
   }
 

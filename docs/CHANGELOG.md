@@ -9,12 +9,16 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Fixed
+
+- Card editor popup add card using the old popup
+
 ## [0.2.2] - 2026-11-20
 
 ### Added
 
 - Player history
-- Player videoes can now be zoomed
+- Player videos can now be zoomed
 - Quick add to anki button in popup dictionary
 
 ### Fixed

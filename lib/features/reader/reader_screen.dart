@@ -275,9 +275,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final draft = _draft(groupIndex);
     if (draft == null) return;
     draft.existingDecks = existingDecks;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => CardEditorScreen(draft: draft)),
+    final messenger = ScaffoldMessenger.of(context);
+    final added = await Navigator.of(context).push(
+      MaterialPageRoute<bool>(builder: (_) => CardEditorScreen(draft: draft)),
     );
+    if (added == true) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('Added "${draft.word}" to Anki')),
+        );
+    }
     _ankiChanged.value++;
   }
 

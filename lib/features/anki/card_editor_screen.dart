@@ -101,10 +101,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       _sent = true;
       ref.read(cardExporterProvider).discard(d);
       if (!mounted) return;
-      Navigator.pop(context);
-      messenger.showSnackBar(
-        SnackBar(content: Text('Added "${d.word}" to Anki')),
-      );
+      Navigator.pop(context, true);
     } on DuplicateNoteException catch (e) {
       if (!mounted) return;
       setState(() => _sending = false);
