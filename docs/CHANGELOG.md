@@ -9,6 +9,8 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-22
+
 ### Added
 
 - Player now supports video streaming in addition to local files.
@@ -131,7 +133,8 @@ First beta.
 - 🔔 **Notifications:** the bell walks you through installing a dictionary and
   connecting AnkiDroid, and tells you when a new version is out
 
-[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/DuoX371/kotohori/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/DuoX371/kotohori/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/DuoX371/kotohori/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/DuoX371/kotohori/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/DuoX371/kotohori/compare/v0.1.6...v0.2.0
