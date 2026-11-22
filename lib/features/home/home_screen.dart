@@ -9,7 +9,7 @@ import 'package:path/path.dart' as p;
 
 import '../../app/theme.dart';
 import '../../platform/documents.dart';
-import '../dictionary/ui/providers.dart' show appPathsProvider;
+import '../dictionary/ui/providers.dart' show appPathsProvider, dioProvider;
 import '../anki/card_builder.dart' show clock;
 import '../player/player_controller.dart' show ResumePoint;
 import '../player/player_screen.dart';
@@ -20,6 +20,7 @@ import '../subtitles/subtitle_loader.dart';
 import 'display_name.dart';
 import 'last_session.dart';
 import 'swipe_to_delete.dart';
+import 'video_link.dart';
 import '../notices/notices_button.dart';
 
 /// Start screen: pick a video and a subtitle file, then play — or restore the last one.
@@ -111,20 +112,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (!_videoExts.contains(_ext(f.name))) {
       return _snack('Choose a video file (${_videoExts.join(', ')})');
     }
-    setState(() {
-      // Subtitles taken from the previous video don't belong to this one.
-      if (embeddedTrackOf(_subs?.uri) != null) {
-        _subs = null;
-        _cues = null;
-        _subsError = null;
-      }
-      _video = f;
-    });
+    _setVideo(f);
   }
+
+  Future<void> _openLink() async {
+    final clip = (await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '';
+    final current = _video?.uri;
+    if (!mounted) return;
+    final video = await showDialog<PickedDoc>(
+      context: context,
+      builder: (_) => _LinkDialog(
+        check: (link) => checkVideoLink(ref.read(dioProvider), link),
+        initial: current != null && isVideoLink(current)
+            ? current
+            : parseVideoLink(clip)?.toString() ?? '',
+      ),
+    );
+    if (video != null) _setVideo(video);
+  }
+
+  void _setVideo(PickedDoc f) => setState(() {
+    // Subtitles taken from the previous video don't belong to this one.
+    if (embeddedTrackOf(_subs?.uri) != null) {
+      _subs = null;
+      _cues = null;
+      _subsError = null;
+    }
+    _video = f;
+  });
+
+  static Future<bool> _canOpen(String uri) async =>
+      isVideoLink(uri) || await Documents.canOpen(uri);
 
   Future<void> _pickSubs() async {
     final video = _video;
-    if (video != null && canHaveEmbeddedSubs(video.name)) {
+    if (video != null &&
+        !isVideoLink(video.uri) &&
+        canHaveEmbeddedSubs(video.name)) {
       final choice = await showModalBottomSheet<Object>(
         context: context,
         builder: (_) => _SubtitleSourceSheet(videoUri: video.uri),
@@ -227,7 +251,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Subtitles from inside the video need only the video.
     final ok =
         s != null &&
-        await Documents.canOpen(s.videoUri) &&
+        await _canOpen(s.videoUri) &&
         (s.subsUri == null ||
             embeddedTrackOf(s.subsUri) != null ||
             await Documents.canOpen(s.subsUri!));
@@ -264,7 +288,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _restoreOlder(LastSession s) async {
     final name = displayName(s.videoName);
-    if (!await Documents.canOpen(s.videoUri)) {
+    if (!await _canOpen(s.videoUri)) {
       await _forget(s);
       return _snack(
         "Can't find \"$name\" any more, so it was removed from history.",
@@ -416,7 +440,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           label: 'Video',
           empty: 'Choose a video file',
           file: _video?.name,
+          detail: switch (_video?.uri) {
+            final u? when isVideoLink(u) => Uri.parse(u).host,
+            _ => null,
+          },
           onTap: _pickVideo,
+          onLink: _openLink,
         ),
         const SizedBox(height: 12),
         _PickTile(
@@ -523,14 +552,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 8),
               for (final e in older)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _HistoryTile(
-                    session: e,
-                    thumbnail: _thumbFor(e.videoUri),
-                    onTap: () => _restoreOlder(e),
-                    onDelete: () => _removeOlder(e),
-                  ),
+                _HistoryTile(
+                  key: ValueKey(e.videoUri),
+                  session: e,
+                  thumbnail: _thumbFor(e.videoUri),
+                  onTap: () => _restoreOlder(e),
+                  onDelete: () => _removeOlder(e),
                 ),
             ],
           ],
@@ -686,6 +713,7 @@ String _subsLine(LastSession s) => switch (s.subsName) {
 
 class _HistoryTile extends StatelessWidget {
   const _HistoryTile({
+    super.key,
     required this.session,
     required this.thumbnail,
     required this.onTap,
@@ -709,8 +737,8 @@ class _HistoryTile extends StatelessWidget {
       child: Icon(Icons.movie_outlined, color: t.colorScheme.onSurfaceVariant),
     );
     return SwipeToDelete(
-      key: ValueKey(s.videoUri),
       onDelete: onDelete,
+      gap: 8,
       child: Card(
         margin: EdgeInsets.zero,
         child: InkWell(
@@ -795,6 +823,7 @@ class _PickTile extends StatelessWidget {
     this.isError = false,
     this.onClear,
     this.fromVideo = false,
+    this.onLink,
   });
   final IconData icon;
   final String label;
@@ -804,6 +833,8 @@ class _PickTile extends StatelessWidget {
   final bool isError;
   final VoidCallback onTap;
   final VoidCallback? onClear;
+
+  final VoidCallback? onLink;
 
   /// A track inside the video: [file] is already a readable label ("English (CR)").
   final bool fromVideo;
@@ -862,6 +893,12 @@ class _PickTile extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onLink != null)
+                IconButton(
+                  tooltip: 'Open a video link',
+                  icon: const Icon(Icons.link),
+                  onPressed: onLink,
+                ),
               if (onClear != null)
                 IconButton(
                   tooltip: 'Remove $label',
@@ -882,6 +919,87 @@ class _PickTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Asks for a video link; pops it as a [PickedDoc] once [check] finds a video.
+class _LinkDialog extends StatefulWidget {
+  const _LinkDialog({required this.initial, required this.check});
+  final String initial;
+
+  /// The video's name, or null if the link isn't a video.
+  final Future<String?> Function(Uri link) check;
+
+  @override
+  State<_LinkDialog> createState() => _LinkDialogState();
+}
+
+class _LinkDialogState extends State<_LinkDialog> {
+  late final _text = TextEditingController(text: widget.initial);
+  String? _error;
+  var _checking = false;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  Future<void> _open() async {
+    if (_checking) return;
+    const invalid = 'Invalid video link';
+    final link = parseVideoLink(_text.text);
+    if (link == null) return setState(() => _error = invalid);
+    setState(() => _checking = true);
+    final name = await widget.check(link);
+    if (!mounted) return;
+    if (name != null) {
+      final PickedDoc video = (uri: link.toString(), name: name, size: -1);
+      return Navigator.of(context).pop(video);
+    }
+    setState(() {
+      _checking = false;
+      _error = invalid;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Open a video link'),
+    content: TextField(
+      controller: _text,
+      autofocus: true,
+      readOnly:
+          _checking, // not disabled: that drops the focus and the keyboard
+      keyboardType: TextInputType.url,
+      autocorrect: false,
+      onEditingComplete:
+          _open, // unlike onSubmitted, keeps the keyboard up to fix a bad link
+      onChanged: (_) {
+        if (_error != null) setState(() => _error = null);
+      },
+      decoration: InputDecoration(
+        hintText: 'Enter video link here (.mp4, .mkv, .m3u8…)',
+        helperMaxLines: 2,
+        errorText: _error,
+        errorMaxLines: 3,
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: _checking ? null : _open,
+        child: _checking
+            ? const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Text('Open'),
+      ),
+    ],
+  );
 }
 
 /// "Choose a file…" plus the text subtitle tracks found inside the video.

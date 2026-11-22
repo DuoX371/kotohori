@@ -17,6 +17,7 @@ import '../explain/explain_request.dart';
 import '../explain/explain_settings.dart';
 import '../explain/explain_settings_screen.dart';
 import '../home/display_name.dart';
+import '../home/video_link.dart';
 import '../settings/player_settings.dart';
 import '../subtitles/auto_sync.dart';
 import '../subtitles/cue.dart';
@@ -766,6 +767,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           ),
           if (_flash case final flash?)
             Positioned.fill(child: SeekFlash(flash, visible: _flashVisible)),
+          if (_error == null)
+            IgnorePointer(
+              child: Center(
+                child: StreamBuilder(
+                  stream: c.player.stream.buffering,
+                  initialData: c.player.state.buffering,
+                  builder: (_, b) => b.data == true
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            ),
           if (_error != null)
             Center(
               child: Padding(
@@ -926,7 +939,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               showPlayerOptions(
                 _scaffold.currentContext!,
                 c,
-                onAutoSync: canHaveEmbeddedSubs(widget.title)
+                onAutoSync:
+                    canHaveEmbeddedSubs(widget.title) &&
+                        !isVideoLink(widget.videoUri)
                     ? _autoSync
                     : null,
               ).then((_) => _poke());

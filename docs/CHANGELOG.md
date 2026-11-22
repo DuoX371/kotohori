@@ -9,6 +9,10 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Added
+
+- Player now supports video streaming in addition to local files.
+
 ### Fixed
 
 - Card editor popup add card using the old popup

@@ -6,10 +6,13 @@ class SwipeToDelete extends StatefulWidget {
     required this.child,
     required this.onDelete,
     this.label = 'Delete',
+    this.gap = 0,
   });
   final Widget child;
   final VoidCallback onDelete;
   final String label;
+
+  final double gap;
 
   @override
   State<SwipeToDelete> createState() => _SwipeToDeleteState();
@@ -28,10 +31,11 @@ class _SwipeToDeleteState extends State<SwipeToDelete>
     duration: const Duration(milliseconds: 200),
   );
 
-  /// Delete pressed: the row slides off and fades, then the gap closes.
+  /// Delete pressed: the row fades and shrinks away while the rows below
+  /// glide up into its place, like books on the reader's shelf.
   late final _gone = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 360),
+    duration: const Duration(milliseconds: 450),
   );
 
   Future<void> _delete() async {
@@ -62,87 +66,92 @@ class _SwipeToDeleteState extends State<SwipeToDelete>
         sizeFactor: Tween(begin: 1.0, end: 0.0).animate(
           CurvedAnimation(
             parent: _gone,
-            curve: const Interval(0.45, 1, curve: Curves.easeInOutCubic),
+            curve: const Interval(0.2, 1, curve: Curves.easeInOutCubic),
           ),
         ),
-        child: FadeTransition(
-          opacity: Tween(begin: 1.0, end: 0.0).animate(
-            CurvedAnimation(parent: _gone, curve: const Interval(0, 0.5)),
-          ),
-          child: SlideTransition(
-            position: Tween(begin: Offset.zero, end: const Offset(-0.6, 0))
-                .animate(
-                  CurvedAnimation(
-                    parent: _gone,
-                    curve: const Interval(0, 0.5, curve: Curves.easeInCubic),
-                  ),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: widget.gap),
+          child: FadeTransition(
+            opacity: Tween(begin: 1.0, end: 0.0).animate(
+              CurvedAnimation(
+                parent: _gone,
+                curve: const Interval(0, 0.45, curve: Curves.easeOut),
+              ),
+            ),
+            child: ScaleTransition(
+              scale: Tween(begin: 1.0, end: 0.9).animate(
+                CurvedAnimation(
+                  parent: _gone,
+                  curve: const Interval(0, 0.45, curve: Curves.easeOut),
                 ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    // Hidden while covered, so no red shows at the rounded corners.
-                    child: ValueListenableBuilder(
-                      valueListenable: _open,
-                      builder: (context, v, child) =>
-                          Visibility(visible: v > 0, child: child!),
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: SizedBox(
-                          width: _width,
-                          child: Material(
-                            color: _red,
-                            child: InkWell(
-                              onTap: _gone.isAnimating ? null : _delete,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.white,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    widget.label,
-                                    style: t.textTheme.labelLarge?.copyWith(
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      // Hidden while covered, so no red shows at the rounded corners.
+                      child: ValueListenableBuilder(
+                        valueListenable: _open,
+                        builder: (context, v, child) =>
+                            Visibility(visible: v > 0, child: child!),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: SizedBox(
+                            width: _width,
+                            child: Material(
+                              color: _red,
+                              child: InkWell(
+                                onTap: _gone.isAnimating ? null : _delete,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.delete_outline,
                                       color: Colors.white,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      widget.label,
+                                      style: t.textTheme.labelLarge?.copyWith(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  AnimatedBuilder(
-                    animation: _open,
-                    builder: (context, child) => Transform.translate(
-                      offset: Offset(-_open.value * _width, 0),
-                      child: child,
+                    AnimatedBuilder(
+                      animation: _open,
+                      builder: (context, child) => Transform.translate(
+                        offset: Offset(-_open.value * _width, 0),
+                        child: child,
+                      ),
+                      child: widget.child,
                     ),
-                    child: widget.child,
-                  ),
-                  // While open, a tap on the row only covers Delete again.
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    right: _width,
-                    child: ValueListenableBuilder(
-                      valueListenable: _open,
-                      builder: (context, v, child) =>
-                          IgnorePointer(ignoring: v == 0, child: child),
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () =>
-                            _open.animateTo(0, curve: Curves.easeOutCubic),
+                    // While open, a tap on the row only covers Delete again.
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      right: _width,
+                      child: ValueListenableBuilder(
+                        valueListenable: _open,
+                        builder: (context, v, child) =>
+                            IgnorePointer(ignoring: v == 0, child: child),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () =>
+                              _open.animateTo(0, curve: Curves.easeOutCubic),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
