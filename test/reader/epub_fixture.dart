@@ -119,5 +119,6 @@ Uint8List buildEpub({
           '<spine${ncx ? ' toc="ncx"' : ''}>$spine</spine></package>',
     ),
   );
-  return ZipEncoder().encodeBytes(a);
+  // A fixed date: two builds of the same book must be byte-identical (same hash).
+  return ZipEncoder().encodeBytes(a, modified: DateTime(2020));
 }

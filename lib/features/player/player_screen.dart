@@ -1046,51 +1046,58 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     onPressed: _act(f),
   );
 
-  // Rebuilds on position and duration: paused videos emit no position ticks,
-  // so the duration must trigger its own rebuild once the file has loaded.
+  // Rebuilds on position, duration and buffer: paused videos emit no position
+  // ticks, so the duration and the still-loading buffer need their own rebuilds.
   Widget _seekBar() => StreamBuilder<Duration>(
     stream: c.player.stream.duration,
     builder: (_, _) => StreamBuilder<Duration>(
-      stream: c.player.stream.position,
-      builder: (_, _) {
-        final pos = c.player.state.position, dur = c.player.state.duration;
-        final max = dur.inMilliseconds.toDouble();
-        const time = TextStyle(
-          color: Colors.white,
-          fontSize: 13,
-          fontFeatures: [FontFeature.tabularFigures()],
-        );
-        return Row(
-          children: [
-            Text(formatDuration(pos), style: time),
-            Expanded(
-              child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 4,
-                  inactiveTrackColor: Colors.white24,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 8,
+      stream: c.player.stream.buffer,
+      builder: (_, _) => StreamBuilder<Duration>(
+        stream: c.player.stream.position,
+        builder: (_, _) {
+          final pos = c.player.state.position, dur = c.player.state.duration;
+          // How far ahead is loaded (a stream's download), as YouTube shows it.
+          final loaded = c.player.state.buffer.inMilliseconds;
+          final max = dur.inMilliseconds.toDouble();
+          const time = TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontFeatures: [FontFeature.tabularFigures()],
+          );
+          return Row(
+            children: [
+              Text(formatDuration(pos), style: time),
+              Expanded(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 4,
+                    inactiveTrackColor: Colors.white24,
+                    secondaryActiveTrackColor: Colors.white54,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 8,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 18,
+                    ),
                   ),
-                  overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 18,
+                  child: Slider(
+                    value: pos.inMilliseconds.clamp(0, max).toDouble(),
+                    max: max <= 0 ? 1 : max,
+                    secondaryTrackValue: loaded.clamp(0, max).toDouble(),
+                    onChanged: max <= 0
+                        ? null
+                        : (v) {
+                            c.player.seek(Duration(milliseconds: v.round()));
+                            _poke();
+                          },
                   ),
-                ),
-                child: Slider(
-                  value: pos.inMilliseconds.clamp(0, max).toDouble(),
-                  max: max <= 0 ? 1 : max,
-                  onChanged: max <= 0
-                      ? null
-                      : (v) {
-                          c.player.seek(Duration(milliseconds: v.round()));
-                          _poke();
-                        },
                 ),
               ),
-            ),
-            Text(formatDuration(dur), style: time),
-          ],
-        );
-      },
+              Text(formatDuration(dur), style: time),
+            ],
+          );
+        },
+      ),
     ),
   );
 }
