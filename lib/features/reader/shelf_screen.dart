@@ -14,6 +14,7 @@ import 'library_db.dart';
 import 'reader_providers.dart';
 import 'book_details_sheet.dart';
 import 'reader_screen.dart';
+import 'reader_settings.dart' show bookSettingsProvider;
 import 'reading_status.dart';
 import 'shelf_layout.dart';
 
@@ -448,6 +449,7 @@ class _ReaderShelfScreenState extends ConsumerState<ReaderShelfScreen>
     final repo = ref.read(bookRepoProvider);
     for (final b in chosen) {
       await repo.remove(b.hash);
+      await ref.read(bookSettingsProvider(b.hash).notifier).clear();
     }
     if (mounted) setState(() => _selected = null);
     messenger
@@ -565,6 +567,7 @@ class _ReaderShelfScreenState extends ConsumerState<ReaderShelfScreen>
     );
     if (ok != true) return false;
     await ref.read(bookRepoProvider).remove(book.hash);
+    await ref.read(bookSettingsProvider(book.hash).notifier).clear();
     return true;
   }
 }

@@ -31,6 +31,7 @@ sealed class ReaderEvent {
           m['pages']! as int,
           m['ch'] as int?,
         ),
+        'image' => ReaderImage(m['src']! as String),
         'edge' => switch (m['dir']) {
           'next' => const ReaderEdge(true),
           'prev' => const ReaderEdge(false),
@@ -90,6 +91,12 @@ class ReaderPos extends ReaderEvent {
 }
 
 /// Paged past the end ([forward]) or the start of the chapter.
+/// A picture was tapped: [src] is its URL (a file:// one for book pictures).
+class ReaderImage extends ReaderEvent {
+  const ReaderImage(this.src);
+  final String src;
+}
+
 class ReaderEdge extends ReaderEvent {
   const ReaderEdge(this.forward);
   final bool forward;

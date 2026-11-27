@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../dictionary/ui/providers.dart' show prefsProvider;
 import 'reader_fonts.dart';
+import 'reader_providers.dart' show bookDetailsProvider;
 
 enum ReaderTheme {
   white('White', Color(0xFFFFFFFF), Color(0xFF1A1A1A)),
@@ -187,3 +188,77 @@ final readerSettingsProvider =
     NotifierProvider<ReaderSettingsNotifier, ReaderSettings>(
       ReaderSettingsNotifier.new,
     );
+
+/// [language] is the book's (dc:language). None given: taken as Japanese.
+bool isJapanese(String? language) {
+  final l = language?.trim().toLowerCase() ?? '';
+  return l.isEmpty || l == 'ja' || l == 'jpn' || l.startsWith('ja-');
+}
+
+/// How a book looks before it changes anything: the global settings, but
+/// horizontal unless it's Japanese (sideways English is hard to read).
+ReaderSettings bookDefault(ReaderSettings global, String? language) =>
+    isJapanese(language) ? global : global.copyWith(vertical: false);
+
+/// A book's own settings: only the ones it changes (JSON keys of
+/// [ReaderSettings]); the rest follow [bookDefault].
+class BookSettingsNotifier extends Notifier<Map<String, Object?>> {
+  BookSettingsNotifier(this.hash);
+  final String hash;
+
+  String get _key => 'reader.book.$hash';
+
+  @override
+  Map<String, Object?> build() {
+    try {
+      final raw = ref.watch(prefsProvider).getString(_key);
+      return raw == null ? const {} : jsonDecode(raw) as Map<String, Object?>;
+    } on Object {
+      return const {};
+    }
+  }
+
+  /// Makes the book look like [next]: keeps what differs from its default.
+  Future<void> change(ReaderSettings next) {
+    final base = bookDefault(
+      ref.read(readerSettingsProvider),
+      ref.read(bookDetailsProvider(hash)).value?.language,
+    ).toJson();
+    return _set({
+      for (final MapEntry(:key, :value) in next.toJson().entries)
+        if (value != base[key]) key: value,
+    });
+  }
+
+  /// Back to the default for [key].
+  Future<void> reset(String key) => _set({...state}..remove(key));
+
+  Future<void> clear() => _set(const {});
+
+  Future<void> _set(Map<String, Object?> own) async {
+    state = own;
+    final prefs = ref.read(prefsProvider);
+    own.isEmpty
+        ? await prefs.remove(_key)
+        : await prefs.setString(_key, jsonEncode(own));
+  }
+}
+
+final bookSettingsProvider =
+    NotifierProvider.family<BookSettingsNotifier, Map<String, Object?>, String>(
+      BookSettingsNotifier.new,
+    );
+
+final bookReaderSettingsProvider = Provider.family<ReaderSettings, String>((
+  ref,
+  hash,
+) {
+  final base = bookDefault(
+    ref.watch(readerSettingsProvider),
+    ref.watch(bookDetailsProvider(hash)).value?.language,
+  );
+  final own = ref.watch(bookSettingsProvider(hash));
+  return own.isEmpty
+      ? base
+      : ReaderSettings.fromJson({...base.toJson(), ...own});
+});

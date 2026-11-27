@@ -102,4 +102,17 @@ void main() {
       );
     },
   );
+
+  test('books start horizontal unless Japanese', () {
+    for (final l in [null, '', 'ja', 'JA', 'ja-JP', 'jpn']) {
+      expect(isJapanese(l), isTrue, reason: '$l');
+    }
+    for (final l in ['en', 'en-US', 'zh', 'ko']) {
+      expect(isJapanese(l), isFalse, reason: l);
+    }
+    const global = ReaderSettings();
+    expect(bookDefault(global, 'ja').vertical, isTrue);
+    expect(bookDefault(global, 'en').vertical, isFalse);
+    expect(bookDefault(global, 'en').fontSize, global.fontSize);
+  });
 }

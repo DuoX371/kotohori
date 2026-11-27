@@ -6,7 +6,10 @@ Duration ms(int v) => Duration(milliseconds: v);
 void main() {
   test('double tap on a side seeks 5 s that way', () {
     final t = TapSeeker();
-    expect(t.tap(ms(0), TapSide.right), isNull); // first tap: maybe a single tap
+    expect(
+      t.tap(ms(0), TapSide.right),
+      isNull,
+    ); // first tap: maybe a single tap
     expect(t.tap(ms(200), TapSide.right), 5);
     expect(t.total, 5);
 

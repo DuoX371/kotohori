@@ -23,6 +23,7 @@ import 'book_view.dart';
 import 'library_db.dart';
 import 'position.dart';
 import 'reader_controller.dart';
+import 'image_viewer.dart';
 import 'reader_event.dart';
 import 'reading_clock.dart';
 import 'reader_providers.dart';
@@ -76,7 +77,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _maybeHint() {
     if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? true)) return;
     final prefs = ref.read(prefsProvider);
-    final vertical = ref.read(readerSettingsProvider).vertical;
+    final vertical = ref
+        .read(bookReaderSettingsProvider(widget.book.hash))
+        .vertical;
     if (!tapHintDue(prefs, vertical: vertical)) return;
     markTapHintSeen(prefs, vertical: vertical).ignore();
     setState(() => _hint = true);
@@ -104,8 +107,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       final path = repo.epubPath(hash);
       final epub = await loadEpub(path);
       await extractEpub(path, repo.extractedDir(hash));
+      await ref
+          .read(bookDetailsProvider(hash).future)
+          .then<void>((_) {}, onError: (_) {});
       if (!mounted) return;
-      final s = ref.read(readerSettingsProvider);
+      final s = ref.read(bookReaderSettingsProvider(widget.book.hash));
       final view = BookViewController(
         epub: epub,
         extractedDir: repo.extractedDir(hash),
@@ -158,7 +164,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         } else if (c.explain.isOpen) {
           c.explain.close();
         } else {
-          final vertical = ref.read(readerSettingsProvider).vertical;
+          final vertical = ref
+              .read(bookReaderSettingsProvider(widget.book.hash))
+              .vertical;
           switch (blankTapAction(
             e.x,
             e.width,
@@ -189,14 +197,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         _maybeHint(); // the first page is on screen
         _saveTimer?.cancel();
         _saveTimer = Timer(const Duration(seconds: 1), _save);
+      case ReaderImage(:final src):
+        if (c.lookup.isOpen) return c.lookup.close();
+        if (c.explain.isOpen) return c.explain.close();
+        final uri = Uri.tryParse(src);
+        if (uri == null || uri.scheme != 'file') return;
+        Navigator.of(context).push(ImageViewer.route(uri.toFilePath()));
       case ReaderEdge():
     }
   }
 
-  /// "p. 45 of ~380 · 12%"; just "12%" until the page size is known. The %
-  /// is how much of the book's text is read, the same as on the shelf.
+  /// "p. 45 of ~380 · 12.34%"; just "12.34%" until the page size is known.
+  /// The % is how much of the book's text is read, as on the shelf (which
+  /// rounds it down to whole numbers).
   String _progressLabel(double progress, BookViewController v, ReaderPos pos) {
-    final percent = '${(progress * 100).floor()}%';
+    final percent = '${((progress * 10000).floor() / 100).toStringAsFixed(2)}%';
     final cpp = _charsPerPage;
     if (cpp == null) return percent;
     final p = bookPages(
@@ -383,7 +398,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
     if (e is KeyUpEvent) return KeyEventResult.ignored;
     final v = _view;
-    final vertical = ref.read(readerSettingsProvider).vertical;
+    final vertical = ref
+        .read(bookReaderSettingsProvider(widget.book.hash))
+        .vertical;
     switch (e.logicalKey) {
       case LogicalKeyboardKey.arrowLeft:
         vertical ? v?.next() : v?.prev();
@@ -454,10 +471,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(readerSettingsProvider);
+    final settings = ref.watch(bookReaderSettingsProvider(widget.book.hash));
     final app = Theme.of(context);
     final theme = effectiveTheme(settings, app.brightness);
-    ref.listen(readerSettingsProvider, (_, s) {
+    ref.listen(bookReaderSettingsProvider(widget.book.hash), (_, s) {
       _charsPerPage = null; // a new font or margin changes the page size
       _view?.applySettings(s, effectiveTheme(s, Theme.of(context).brightness));
     });
@@ -623,8 +640,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                       barrierColor: Colors.transparent,
                                       backgroundColor: Colors.transparent,
                                       elevation: 0,
-                                      builder: (_) =>
-                                          const ReaderSettingsSheet(),
+                                      builder: (_) => ReaderSettingsSheet(
+                                        book: widget.book.hash,
+                                      ),
                                     );
                                     if (_view != null) _maybeHint();
                                   },

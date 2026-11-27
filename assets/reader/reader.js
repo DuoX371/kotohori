@@ -390,7 +390,8 @@
     s.textContent =
       'html{overflow:hidden !important;touch-action:' +
       (!state.scroll ? 'none' : state.vertical ? 'pan-x' : 'pan-y') + ' !important;' +
-      'height:' + h + 'px !important;width:' + w + 'px !important;}' +
+      'height:' + h + 'px !important;width:' + w + 'px !important;' +
+      'margin:0 !important;padding:0 !important;}' +
       'body{box-sizing:border-box !important;' + flow +
       'width:' + w + 'px !important;height:' + h + 'px !important;max-width:none !important;}' +
       'section.kh-ch{display:block;margin:0;padding:0;}' +
@@ -593,7 +594,7 @@
     rest = setTimeout(function () { scrolled(); }, 150);
     if (busy) return;
     busy = true;
-    setTimeout(function () { busy = false; scrolled(); }, 300);
+    setTimeout(function () { busy = false; scrolled(); }, 100);
   }, { passive: true });
 
   window.addEventListener('resize', function () {
@@ -621,10 +622,16 @@
     }
   }, { passive: true });
 
-  // Tap = look up the character under the finger, or blank = toggle the menu.
   document.addEventListener('click', function (e) {
     if (swiped) { swiped = false; return; }
     if (e.target.closest && e.target.closest('a[href]')) return; // a link: Flutter follows it
+    var pic = e.target.closest && e.target.closest('img, image');
+    if (pic) {
+      var src = pic.tagName.toLowerCase() === 'img'
+        ? pic.currentSrc || pic.src
+        : new URL(pic.getAttribute('href') || pic.getAttribute('xlink:href') || '', document.baseURI).href;
+      if (src) return post({ t: 'image', src: src });
+    }
     var caret = document.caretRangeFromPoint(e.clientX, e.clientY);
     var node = caret && caret.startContainer;
     var blank = { t: 'blank', x: e.clientX / viewW(), w: viewW(), y: e.clientY / viewH(), h: viewH() };

@@ -73,4 +73,10 @@ void main() {
     expect(ReaderEvent.parse('{"t":"edge","dir":"sideways"}'), isNull);
     expect(ReaderEvent.parse('[1,2]'), isNull);
   });
+
+  test('a tapped picture carries its file', () {
+    final e = ReaderEvent.parse('{"t":"image","src":"file:///b/x/p1.jpg"}');
+    expect((e! as ReaderImage).src, 'file:///b/x/p1.jpg');
+    expect(ReaderEvent.parse('{"t":"image"}'), isNull);
+  });
 }

@@ -6,6 +6,7 @@ import android.app.RemoteAction
 import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -13,12 +14,15 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.Environment
 import android.os.StatFs
+import android.provider.MediaStore
 import android.util.Rational
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import java.io.File
+import java.net.URLConnection
 import androidx.lifecycle.Lifecycle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -94,6 +98,43 @@ class MainActivity : FlutterActivity() {
                     result.success(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
                 } catch (e: Exception) {
                     result.error("copyImage", e.message, null)
+                }
+                "shareImage" -> try {
+                    val uri = FileProvider.getUriForFile(
+                        this, "$packageName.fileprovider", File(call.argument<String>("path")!!),
+                    )
+                    val send = Intent(Intent.ACTION_SEND)
+                        .setType(contentResolver.getType(uri) ?: "image/*")
+                        .putExtra(Intent.EXTRA_STREAM, uri)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    send.clipData = ClipData.newRawUri(null, uri) // the chooser's preview
+                    startActivity(Intent.createChooser(send, null))
+                    result.success(null)
+                } catch (e: Exception) {
+                    result.error("shareImage", e.message, null)
+                }
+                "saveImage" -> {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return@setMethodCallHandler result.success(false)
+                    val file = File(call.argument<String>("path")!!)
+                    Thread {
+                        try {
+                            val values = ContentValues().apply {
+                                put(MediaStore.Images.Media.DISPLAY_NAME, file.name)
+                                put(
+                                    MediaStore.Images.Media.MIME_TYPE,
+                                    URLConnection.guessContentTypeFromName(file.name) ?: "image/jpeg",
+                                )
+                                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Kotohori")
+                            }
+                            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)!!
+                            contentResolver.openOutputStream(uri)!!.use { out ->
+                                file.inputStream().use { it.copyTo(out) }
+                            }
+                            runOnUiThread { result.success(true) }
+                        } catch (e: Exception) {
+                            runOnUiThread { result.error("saveImage", e.message, null) }
+                        }
+                    }.start()
                 }
                 else -> result.notImplemented()
             }
