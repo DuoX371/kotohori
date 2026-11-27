@@ -332,12 +332,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (onSave != null) Future.microtask(() => onSave(point));
   }
 
-  Timer? _thumbTimer;
+  Timer? _saveTimer;
 
   Future<void> _grabThumbnail() async {
-    if (widget.onThumbnail == null || !c.player.state.playing) return;
+    final onThumbnail = widget.onThumbnail;
+    if (onThumbnail == null) return;
+    if (c.player.state.duration <= Duration.zero) return; // not loaded yet
     final jpeg = await c.player.screenshot(format: 'image/jpeg');
-    if (jpeg != null && mounted) widget.onThumbnail!(jpeg);
+    if (jpeg != null) onThumbnail(jpeg);
+  }
+
+  bool _leaving = false;
+
+  Future<void>? _exitGrab;
+
+  void _leave() {
+    if (_leaving) return;
+    _leaving = true;
+    if (c.player.state.playing) {
+      c.player.pause();
+      _exitGrab = _grabThumbnail();
+    }
+    Navigator.of(context).pop();
   }
 
   @override
@@ -360,7 +376,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       },
     );
     _pipSubs.addAll([
-      c.player.stream.playing.listen((_) => _updatePip()),
+      c.player.stream.playing.listen((playing) {
+        _updatePip();
+        if (!playing && !_leaving) _grabThumbnail();
+      }),
       // The video's size decides how far "fill" zooms.
       c.player.stream.width.listen((_) {
         _updatePip();
@@ -388,16 +407,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           start: widget.resume?.position ?? Duration.zero,
         )
         .then((_) => _poke());
-    // First frame a few seconds in (past black/logos), then frame + resume point every 30 s.
     c.lookup.addListener(_refocusOnClose);
     c.explain.addListener(_refocusOnClose);
-    _thumbTimer = Timer(const Duration(seconds: 8), () {
-      _grabThumbnail();
-      _thumbTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-        _grabThumbnail();
-        _save(); // so the resume point survives the app being killed
-      });
-    });
+    // So the resume point survives the app being killed.
+    _saveTimer = Timer.periodic(const Duration(seconds: 30), (_) => _save());
   }
 
   /// However the popup closes (X, Esc, tapping the video), keyboard focus may
@@ -418,7 +431,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     Pip.configure(enabled: false);
     _lifecycle.dispose();
     _hideTimer?.cancel();
-    _thumbTimer?.cancel();
+    _saveTimer?.cancel();
     _keys.dispose();
     _singleTap?.cancel();
     _flashOff?.cancel();
@@ -428,7 +441,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     SystemChrome.setPreferredOrientations(
       [],
     ); // back to the app's normal rotation
-    c.dispose();
+    final grab = _exitGrab;
+    if (grab == null) {
+      c.dispose();
+    } else {
+      grab
+          .timeout(const Duration(seconds: 2))
+          .catchError((Object _) {})
+          .whenComplete(c.dispose);
+    }
     super.dispose();
   }
 
@@ -676,24 +697,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      focusNode: _keys,
-      autofocus: true,
-      onKeyEvent: _onKey,
-      // The player is always dark, whatever the app theme.
-      child: Theme(
-        data: _darkTheme.copyWith(
-          snackBarTheme: _darkTheme.snackBarTheme.copyWith(
-            width: snackBarWidth(MediaQuery.sizeOf(context)),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leave();
+      },
+      child: Focus(
+        focusNode: _keys,
+        autofocus: true,
+        onKeyEvent: _onKey,
+        // The player is always dark, whatever the app theme.
+        child: Theme(
+          data: _darkTheme.copyWith(
+            snackBarTheme: _darkTheme.snackBarTheme.copyWith(
+              width: snackBarWidth(MediaQuery.sizeOf(context)),
+            ),
           ),
-        ),
-        child: Scaffold(
-          key: _scaffold,
-          backgroundColor: Colors.black,
-          endDrawer: Drawer(child: SafeArea(child: CueList(c))),
-          body: ListenableBuilder(
-            listenable: Listenable.merge([c.lookup, c.explain]),
-            builder: (context, _) => _body(context),
+          child: Scaffold(
+            key: _scaffold,
+            backgroundColor: Colors.black,
+            endDrawer: Drawer(child: SafeArea(child: CueList(c))),
+            body: ListenableBuilder(
+              listenable: Listenable.merge([c.lookup, c.explain]),
+              builder: (context, _) => _body(context),
+            ),
           ),
         ),
       ),

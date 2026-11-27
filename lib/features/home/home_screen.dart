@@ -201,6 +201,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return true;
   }
 
+  bool _starting = false;
+
+  Future<void> _start(Future<void> Function() open) async {
+    if (_starting) return;
+    _starting = true;
+    try {
+      await open();
+    } finally {
+      _starting = false;
+    }
+  }
+
   /// [resume]: the restored session's subtitle sync; a fresh Play starts with no offset.
   Future<void> _play({ResumePoint? resume}) async {
     final v = _video!;
@@ -235,6 +247,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           onThumbnail: (jpeg) async {
             await thumbFile.parent.create(recursive: true);
             await thumbFile.writeAsBytes(jpeg, flush: true);
+            // Leaving the player, the frame lands after Home is back: show it.
+            await ResizeImage(FileImage(thumbFile), width: 256).evict();
+            if (mounted) await _checkRestore();
           },
         ),
       ),
@@ -429,7 +444,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       restorable: _restorable,
       thumbnail: _thumb,
       onRestore: last != null && _restorable == true
-          ? () => _restore(last)
+          ? () => _start(() => _restore(last))
           : null,
     );
     final pickers = Column(
@@ -474,7 +489,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         const SizedBox(height: 20),
         FilledButton.icon(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
-          onPressed: _video == null ? null : _play,
+          onPressed: _video == null ? null : () => _start(_play),
           icon: const Icon(Icons.play_arrow_rounded),
           label: Text(
             _video != null && cues == null ? 'Play without subtitles' : 'Play',
@@ -556,7 +571,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   key: ValueKey(e.videoUri),
                   session: e,
                   thumbnail: _thumbFor(e.videoUri),
-                  onTap: () => _restoreOlder(e),
+                  onTap: () => _start(() => _restoreOlder(e)),
                   onDelete: () => _removeOlder(e),
                 ),
             ],
@@ -605,26 +620,35 @@ class _LastSessionHero extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              if (thumb != null && s != null)
-                Image.memory(
-                  thumb,
-                  fit: BoxFit.cover,
-                  gaplessPlayback: true,
-                  cacheWidth: 1280,
-                )
-              else
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        t.colorScheme.primary.withValues(alpha: 0.22),
-                        t.colorScheme.surfaceContainerHigh,
-                      ],
-                    ),
-                  ),
+              // The frame from leaving the player arrives just after Home shows.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 400),
+                layoutBuilder: (current, previous) => Stack(
+                  fit: StackFit.expand,
+                  children: [...previous, ?current],
                 ),
+                child: thumb != null && s != null
+                    ? Image.memory(
+                        thumb,
+                        key: ObjectKey(thumb),
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                        cacheWidth: 1280,
+                      )
+                    : DecoratedBox(
+                        key: const ValueKey('blank'),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              t.colorScheme.primary.withValues(alpha: 0.22),
+                              t.colorScheme.surfaceContainerHigh,
+                            ],
+                          ),
+                        ),
+                      ),
+              ),
               const DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(

@@ -13,6 +13,10 @@ new version and date, and start a fresh **Unreleased** above it.
 
 - Scrolling mode in reader
 
+### Fixed
+
+- Player freezing every few seconds for older devices
+
 ## [0.2.3] - 2026-11-22
 
 ### Added

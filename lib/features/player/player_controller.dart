@@ -132,7 +132,18 @@ class PlayerController extends ChangeNotifier {
   Future<void> nextCue() => seekToCue(timeline.nextAfter(position));
   Future<void> previousCue() => seekToCue(timeline.previousBefore(position));
   Future<void> replayCue() async {
-    await seekToCue(timeline.currentAt(position));
+    final cue = timeline.currentAt(position);
+    if (cue == null && player.state.completed) return;
+    await seekToCue(cue);
+    if (player.state.completed) {
+      try {
+        await player.stream.completed
+            .firstWhere((ended) => !ended)
+            .timeout(const Duration(seconds: 2));
+      } on TimeoutException {
+        return;
+      }
+    }
     await player.play();
   }
 
