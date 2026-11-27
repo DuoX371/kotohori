@@ -397,6 +397,7 @@
       'section.kh-ch{display:block;margin:0;padding:0;}' +
       'section.kh-ch+section.kh-ch{margin-block-start:' + (2 * m) + 'px;}' +
       'img,svg{break-inside:avoid;}' +
+      'img,image{-webkit-user-drag:none;-webkit-touch-callout:none;user-select:none;}' +
       (state.vertical ? '' : '.kh-after-heading{display:none !important;}') +
       'img{max-width:' + Math.floor((w - 2 * m) * 0.94) + 'px !important;' +
       'max-height:' + Math.floor((h - 2 * m) * 0.94) + 'px !important;' +
@@ -603,6 +604,28 @@
     go(state.ch, state.anchor);
   });
 
+  // The file of the picture [el] is in (<image> is one inside an <svg>), or null.
+  function pictureAt(el) {
+    var pic = el && el.closest && el.closest('img, image');
+    if (!pic) return null;
+    return pic.tagName.toLowerCase() === 'img'
+      ? pic.currentSrc || pic.src || null
+      : new URL(pic.getAttribute('href') || pic.getAttribute('xlink:href') || '', document.baseURI).href;
+  }
+
+  // Holding a picture still: Flutter starts a drag to other apps. Moving or
+  // lifting the finger first is a scroll, swipe or tap instead.
+  var hold = null;
+  function dropHold() { clearTimeout(hold); hold = null; }
+  document.addEventListener('contextmenu', function (e) {
+    if (pictureAt(e.target)) e.preventDefault();
+  });
+  document.addEventListener('touchmove', function (e) {
+    if (!hold || !touch) return;
+    var t = e.touches[0];
+    if (Math.abs(t.clientX - touch.x) > 10 || Math.abs(t.clientY - touch.y) > 10) dropHold();
+  }, { passive: true });
+
   // Pages mode: swipe = turn the page. Vertical books: finger left → right
   // is next. Scroll mode: the finger just scrolls.
   var touch = null, swiped = false;
@@ -610,8 +633,18 @@
     var t = e.touches[0];
     touch = { x: t.clientX, y: t.clientY };
     swiped = false;
+    dropHold();
+    var src = e.touches.length === 1 && pictureAt(e.target);
+    if (src) {
+      hold = setTimeout(function () {
+        hold = null;
+        swiped = true; // the release isn't a tap
+        post({ t: 'imageHold', src: src });
+      }, 450);
+    }
   }, { passive: true });
   document.addEventListener('touchend', function (e) {
+    dropHold();
     if (!touch) return;
     var t = e.changedTouches[0], dx = t.clientX - touch.x, dy = t.clientY - touch.y;
     touch = null;
@@ -625,13 +658,8 @@
   document.addEventListener('click', function (e) {
     if (swiped) { swiped = false; return; }
     if (e.target.closest && e.target.closest('a[href]')) return; // a link: Flutter follows it
-    var pic = e.target.closest && e.target.closest('img, image');
-    if (pic) {
-      var src = pic.tagName.toLowerCase() === 'img'
-        ? pic.currentSrc || pic.src
-        : new URL(pic.getAttribute('href') || pic.getAttribute('xlink:href') || '', document.baseURI).href;
-      if (src) return post({ t: 'image', src: src });
-    }
+    var src = pictureAt(e.target);
+    if (src) return post({ t: 'image', src: src });
     var caret = document.caretRangeFromPoint(e.clientX, e.clientY);
     var node = caret && caret.startContainer;
     var blank = { t: 'blank', x: e.clientX / viewW(), w: viewW(), y: e.clientY / viewH(), h: viewH() };

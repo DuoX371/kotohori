@@ -102,11 +102,11 @@ class ImageViewer extends ConsumerWidget {
           );
         case 'share':
           await _app.invokeMethod<void>('shareImage', {
-            'path': _shareable(ref.read(appPathsProvider).tempDir),
+            'path': shareableCopy(path, ref.read(appPathsProvider).tempDir),
           });
         case 'copy':
           final systemShows = await _app.invokeMethod<bool>('copyImage', {
-            'path': _shareable(ref.read(appPathsProvider).tempDir),
+            'path': shareableCopy(path, ref.read(appPathsProvider).tempDir),
           });
           if (systemShows != true) say('Picture copied');
       }
@@ -116,11 +116,17 @@ class ImageViewer extends ConsumerWidget {
       );
     }
   }
-
-  String _shareable(String tempDir) {
-    final dir = Directory(p.join(tempDir, 'shared'));
-    if (dir.existsSync()) dir.deleteSync(recursive: true);
-    dir.createSync(recursive: true);
-    return File(path).copySync(p.join(dir.path, p.basename(path))).path;
-  }
 }
+
+String shareableCopy(String path, String tempDir) {
+  final dir = Directory(p.join(tempDir, 'shared'));
+  if (dir.existsSync()) dir.deleteSync(recursive: true);
+  dir.createSync(recursive: true);
+  return File(path).copySync(p.join(dir.path, p.basename(path))).path;
+}
+
+/// Starts a system drag of the picture other apps can take; only while the
+/// finger is still down.
+Future<void> dragPicture(String path, String tempDir) => _app
+    .invokeMethod<void>('dragImage', {'path': shareableCopy(path, tempDir)})
+    .catchError((Object _) {});

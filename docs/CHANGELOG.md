@@ -9,6 +9,17 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Added
+
+- Reader book specific settings
+- Images inside book can now be viewed in full screen; save, share, copy
+
+### Fixed
+
+- English books alignment fix
+- Bugs causing player to open twice
+
+
 ## [0.2.4] - 2026-11-27
 
 ### Added

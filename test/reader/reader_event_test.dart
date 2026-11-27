@@ -78,5 +78,8 @@ void main() {
     final e = ReaderEvent.parse('{"t":"image","src":"file:///b/x/p1.jpg"}');
     expect((e! as ReaderImage).src, 'file:///b/x/p1.jpg');
     expect(ReaderEvent.parse('{"t":"image"}'), isNull);
+    final h = ReaderEvent.parse('{"t":"imageHold","src":"file:///p.jpg"}');
+    expect((h! as ReaderImage).held, isTrue);
+    expect((e as ReaderImage).held, isFalse);
   });
 }

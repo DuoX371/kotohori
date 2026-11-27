@@ -18,6 +18,7 @@ import android.os.Environment
 import android.os.StatFs
 import android.provider.MediaStore
 import android.util.Rational
+import android.view.View
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -98,6 +99,18 @@ class MainActivity : FlutterActivity() {
                     result.success(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
                 } catch (e: Exception) {
                     result.error("copyImage", e.message, null)
+                }
+                "dragImage" -> try {
+                    val file = File(call.argument<String>("path")!!)
+                    val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+                    val clip = ClipData.newUri(contentResolver, "Picture", uri)
+                    val started = window.decorView.startDragAndDrop(
+                        clip, PictureShadow(window.decorView, file, resources.displayMetrics.density), null,
+                        View.DRAG_FLAG_GLOBAL or View.DRAG_FLAG_GLOBAL_URI_READ,
+                    )
+                    result.success(started)
+                } catch (e: Exception) {
+                    result.error("dragImage", e.message, null)
                 }
                 "shareImage" -> try {
                     val uri = FileProvider.getUriForFile(

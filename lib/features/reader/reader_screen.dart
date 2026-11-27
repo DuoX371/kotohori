@@ -11,7 +11,7 @@ import '../anki/anki_settings.dart';
 import '../anki/card_editor_screen.dart';
 import '../anki/card_exporter.dart' show CardDraft;
 import '../dictionary/ui/providers.dart'
-    show htmlBuilderProvider, lookupProvider, prefsProvider;
+    show appPathsProvider, htmlBuilderProvider, lookupProvider, prefsProvider;
 import '../explain/explain_request.dart';
 import '../explain/explain_settings.dart';
 import '../explain/explain_settings_screen.dart';
@@ -197,11 +197,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         _maybeHint(); // the first page is on screen
         _saveTimer?.cancel();
         _saveTimer = Timer(const Duration(seconds: 1), _save);
-      case ReaderImage(:final src):
-        if (c.lookup.isOpen) return c.lookup.close();
-        if (c.explain.isOpen) return c.explain.close();
+      case ReaderImage(:final src, :final held):
         final uri = Uri.tryParse(src);
         if (uri == null || uri.scheme != 'file') return;
+        if (held) {
+          HapticFeedback.mediumImpact();
+          dragPicture(uri.toFilePath(), ref.read(appPathsProvider).tempDir);
+          return;
+        }
+        if (c.lookup.isOpen) return c.lookup.close();
+        if (c.explain.isOpen) return c.explain.close();
         Navigator.of(context).push(ImageViewer.route(uri.toFilePath()));
       case ReaderEdge():
     }
