@@ -9,6 +9,10 @@ new version and date, and start a fresh **Unreleased** above it.
 
 ## [Unreleased]
 
+### Added
+
+- Scrolling mode in reader
+
 ## [0.2.3] - 2026-11-22
 
 ### Added

@@ -11,7 +11,11 @@ class ExplainRequest {
     required this.targets,
     required this.model,
     this.source = ExplainSource.show,
+    this.paragraph = false,
   });
+
+  /// A whole paragraph of a book: a lighter answer (see [explainPrompt]).
+  final bool paragraph;
 
   /// The video's display name ("Show - 02"), or the book's title.
   final String title;
@@ -27,8 +31,13 @@ class ExplainRequest {
   /// The text being explained, one subtitle per line.
   String get targetText => targets.map((c) => _oneLine(c.text)).join('\n');
 
-  /// Same lines and model = same answer (used to reuse a finished one).
-  String get cacheKey => '$model ${targets.map((c) => c.index).join(',')}';
+  /// Same lines and model = same answer (used to reuse a finished one). A
+  /// show's lines are numbered through the episode; a book's are numbered only
+  /// within the request, so a book's are matched by their text.
+  String get cacheKey => switch (source) {
+    ExplainSource.show => '$model ${targets.map((c) => c.index).join(',')}',
+    ExplainSource.book => '$model ${paragraph ? 'p' : 's'} $targetText',
+  };
 }
 
 /// Longest silence between two lines that still counts as the same scene.
@@ -104,6 +113,25 @@ One to three sentences on tone, politeness, and anything implied, idiomatic or s
 
 Be brief and accurate. Never use romaji.''';
 
+const _paragraphIntro = '''
+You help an English-speaking learner of Japanese who is reading a Japanese light novel.
+You are given a few sentences in order. Explain only the paragraph made of the sentences marked with ">". The other sentences are there only so you understand the scene; do not explain them.
+
+Answer in English, in Markdown, with exactly these three sections and nothing else:
+
+## Translation
+A natural English translation of the marked paragraph.
+
+## Hard parts
+Up to six bullets, only for the words, grammar or expressions in the marked paragraph that a learner is most likely to stumble on, in order, in exactly this form:
+- **Japanese** (reading): meaning. Why it matters here.
+Copy the Japanese exactly as written. Give the reading in hiragana only for pieces with kanji. Skip anything easy: basic particles, common words, punctuation.
+
+## Nuance
+One to three sentences on tone, what is implied, and how the paragraph fits the scene. Say only what the sentences support.
+
+Be brief and accurate. Never use romaji.''';
+
 /// The standing instructions and the question for [r].
 ({String system, String user}) explainPrompt(ExplainRequest r) {
   final marked = {for (final c in r.targets) c.index};
@@ -115,6 +143,10 @@ Be brief and accurate. Never use romaji.''';
     ExplainSource.show => (
       system: _showIntro + _instructions,
       user: 'Show: ${r.title}\n\nSubtitle lines:\n$dialogue',
+    ),
+    ExplainSource.book when r.paragraph => (
+      system: _paragraphIntro,
+      user: 'Book: ${r.title}\n\nSentences:\n$dialogue',
     ),
     ExplainSource.book => (
       system: _bookIntro + _instructions,

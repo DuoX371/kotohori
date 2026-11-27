@@ -5,7 +5,7 @@ import 'dart:isolate';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -53,21 +53,26 @@ Future<void> extractEpub(String epubPath, String dir) async {
   });
 }
 
-const _unpackedMarker = '.kotohori-unpacked-2';
+const _unpackedMarker = '.kotohori-unpacked-3';
 
 /// A chapter file with a style that keeps it invisible until the reader
 /// script has laid it out (it removes `#kh-hide`). Otherwise the book's own
 /// horizontal layout shows for a moment when a book opens. In the head, so
 /// the text (and reading positions) are untouched.
 List<int> hidePage(List<int> bytes) {
-  final html = utf8.decode(bytes, allowMalformed: true);
+  var html = utf8.decode(bytes, allowMalformed: true);
   final head = RegExp('</head>', caseSensitive: false).firstMatch(html);
   if (head == null) return bytes;
-  return utf8.encode(
-    '${html.substring(0, head.start)}'
-    '<style id="kh-hide">html{visibility:hidden !important}</style>'
-    '${html.substring(head.start)}',
-  );
+  html =
+      '${html.substring(0, head.start)}'
+      '<style id="kh-hide">html{visibility:hidden !important}</style>'
+      '${html.substring(head.start)}';
+  if (!html.toLowerCase().contains('<!doctype')) {
+    final decl = RegExp(r'^\s*<\?xml[^>]*\?>').firstMatch(html);
+    final at = decl?.end ?? 0;
+    html = '${html.substring(0, at)}<!DOCTYPE html>${html.substring(at)}';
+  }
+  return utf8.encode(html);
 }
 
 class PageCover extends ValueNotifier<bool> {
@@ -75,10 +80,13 @@ class PageCover extends ValueNotifier<bool> {
 
   static const limit = Duration(seconds: 2);
 
+  /// Scroll mode lays out the whole book, which takes longer on big books.
+  static const bookLimit = Duration(seconds: 20);
+
   static const settle = Duration(milliseconds: 150);
   Timer? _limit, _settle;
 
-  void loading() {
+  void loading({Duration limit = PageCover.limit}) {
     _limit?.cancel();
     _settle?.cancel();
     _limit = Timer(limit, laidOut);
@@ -157,6 +165,9 @@ class BookViewController {
   /// A chapter is loading: the old page's late messages and page turns are
   /// ignored, so an edge can't open chapters twice or mix up the position.
   bool _loading = false;
+
+  /// The page holds the whole book (scroll mode), not one chapter.
+  bool _book = false;
   static Future<String>? _script;
 
   Future<void> open(
@@ -169,33 +180,69 @@ class BookViewController {
     this.chapter = chapter;
     this.offset = offset;
     _at = atEnd ? 'end' : (fragment != null ? '#$fragment' : offset);
+    if (settings.scroll && _book && !_loading) {
+      await web.runJavaScript('kh.go($chapter, ${jsonEncode(_at)})');
+      return;
+    }
     _loading = true;
-    cover.loading();
-    await web.loadFile(_chapterFile(chapter));
+    _book = settings.scroll;
+    cover.loading(limit: _book ? PageCover.bookLimit : PageCover.limit);
+    await web.loadFile(_book ? await _bookPage() : _chapterFile(chapter));
   }
 
   String _chapterFile(int i) =>
       p.joinAll([extractedDir, ...epub.spine[i].href.split('/')]);
+
+  /// Scroll mode's page: empty, hidden like a chapter until laid out (see
+  /// [hidePage]). The chapters are put into it once it has loaded.
+  Future<String> _bookPage() async {
+    final f = File(p.join(extractedDir, 'kotohori-book.html'));
+    await f.writeAsString(
+      '<!DOCTYPE html><html><head><meta charset="utf-8">'
+      '<style id="kh-hide">html{visibility:hidden !important}</style>'
+      '</head><body></body></html>',
+    );
+    return f.path;
+  }
 
   Future<void> _start() async {
     final js = await (_script ??= rootBundle.loadString(
       'assets/reader/reader.js',
     ));
     await web.runJavaScript(js);
+    if (_book) {
+      for (final (i, item) in epub.spine.indexed) {
+        final file = File(_chapterFile(i));
+        final html = file.existsSync()
+            ? utf8.decode(await file.readAsBytes(), allowMalformed: true)
+            : '';
+        final xml = RegExp(
+          r'\.(xhtml|xht|xml)$',
+          caseSensitive: false,
+        ).hasMatch(item.href);
+        await web.runJavaScript(
+          'kh.add($i, ${jsonEncode(Uri.file(file.path).toString())}, '
+          '${jsonEncode(xml ? 'application/xhtml+xml' : 'text/html')}, '
+          '${jsonEncode(html)})',
+        );
+      }
+    }
     _loading = false;
     await _init(_at);
   }
 
   Future<void> _init(Object at) => web.runJavaScript(
     'kh.init(${jsonEncode(readerCss(settings, theme, fontUrl: fonts.urlFor(settings.font)))}, ${settings.vertical}, '
-    '${settings.margin}, ${jsonEncode(at)})',
+    '${settings.margin}, ${jsonEncode(_book ? {'ch': chapter, 'at': at} : at)}, $_book)',
   );
 
   /// Restyles the page and keeps the same text on screen.
   Future<void> applySettings(ReaderSettings s, ReaderTheme t) async {
+    final reload = s.scroll != settings.scroll;
     settings = s;
     theme = t;
     await web.setBackgroundColor(t.background);
+    if (reload) return open(chapter, offset: offset);
     await _init(offset);
   }
 
@@ -215,7 +262,8 @@ class BookViewController {
   void _handle(ReaderEvent e) {
     if (_loading && (e is ReaderPos || e is ReaderEdge)) return;
     switch (e) {
-      case ReaderPos(:final offset):
+      case ReaderPos(:final offset, chapter: final ch):
+        if (ch != null) chapter = ch;
         this.offset = offset;
         cover.laidOutSoon(); // the new chapter is laid out: show it
       case ReaderEdge(forward: true):
@@ -253,7 +301,16 @@ class BookView extends StatelessWidget {
       ValueListenableBuilder(
         valueListenable: controller.cover,
         builder: (_, covered, _) => covered
-            ? ColoredBox(color: controller.theme.background)
+            ? ColoredBox(
+                color: controller.theme.background,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 600),
+                  curve: const Interval(0.5, 1),
+                  builder: (_, o, child) => Opacity(opacity: o, child: child),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+              )
             : const SizedBox.shrink(),
       ),
     ],

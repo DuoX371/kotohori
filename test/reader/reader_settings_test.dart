@@ -18,6 +18,15 @@ void main() {
     );
   });
 
+  test('scroll mode: off by default, kept in JSON', () {
+    expect(const ReaderSettings().scroll, isFalse);
+    expect(ReaderSettings.fromJson({'scroll': 'yes'}).scroll, isFalse);
+    final s = ReaderSettings.fromJson(
+      const ReaderSettings(scroll: true).toJson(),
+    );
+    expect(s.scroll, isTrue);
+  });
+
   test('heading size: relative to the text, default 1.3×, kept in JSON', () {
     expect(const ReaderSettings().headingSize, 1.3);
     final s = ReaderSettings.fromJson(
@@ -65,4 +74,32 @@ void main() {
     expect(h, contains('horizontal-tb'));
     expect(h, contains('#F4ECD8'));
   });
+
+  test('scroll mode chapters take size and spacing from the settings', () {
+    // A chapter's body classes sit on its section, where the book may size
+    // text; the section must inherit the settings from <body> instead.
+    expect(
+      readerCss(const ReaderSettings(), ReaderTheme.white),
+      contains(
+        'section.kh-ch { font-size: inherit !important; '
+        'line-height: inherit !important; }',
+      ),
+    );
+  });
+
+  test(
+    'vertical drops paragraph top/bottom margins; horizontal keeps them',
+    () {
+      const drop =
+          'p { margin-top: 0 !important; margin-bottom: 0 !important; }';
+      expect(
+        readerCss(const ReaderSettings(), ReaderTheme.white),
+        contains(drop),
+      );
+      expect(
+        readerCss(const ReaderSettings(vertical: false), ReaderTheme.white),
+        isNot(contains(drop)),
+      );
+    },
+  );
 }

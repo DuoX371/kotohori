@@ -28,30 +28,46 @@ class ReaderController extends ChangeNotifier {
     await lookup.tapText(t.para, t.text, t.offset);
   }
 
-  /// Explain for the sentence around the last tap, with up to two sentences
-  /// each side as context. Null before anything was tapped.
+  /// Explain for the sentence around the last tap (or its whole [paragraph]),
+  /// with up to two sentences each side as context. Null before anything was
+  /// tapped.
   ExplainRequest? explainRequest({
     required String title,
     required String model,
+    bool paragraph = false,
   }) {
     final t = lastTap;
     if (t == null) return null;
-    final s = explainSentences(
-      before: t.before,
-      paragraph: t.text,
-      offset: t.offset,
-      after: t.after,
-    );
+    final List<String> texts;
+    final int from, count;
+    if (paragraph) {
+      final s = explainParagraph(
+        before: t.before,
+        paragraph: t.text,
+        after: t.after,
+      );
+      (texts, from, count) = (s.lines, s.from, s.count);
+    } else {
+      final s = explainSentences(
+        before: t.before,
+        paragraph: t.text,
+        offset: t.offset,
+        after: t.after,
+      );
+      (texts, from, count) = (s.lines, s.target, 1);
+    }
+    if (count == 0) return null;
     final lines = [
-      for (final (i, text) in s.lines.indexed)
+      for (final (i, text) in texts.indexed)
         Cue(i, Duration.zero, Duration.zero, text),
     ];
     return ExplainRequest(
       title: title,
       lines: lines,
-      targets: [lines[s.target]],
+      targets: lines.sublist(from, from + count),
       model: model,
       source: ExplainSource.book,
+      paragraph: paragraph,
     );
   }
 

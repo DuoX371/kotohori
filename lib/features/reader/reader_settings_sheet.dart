@@ -195,6 +195,18 @@ class ReaderSettingsSheet extends ConsumerWidget {
                   n.update((s) => s.copyWith(vertical: v.single)),
             ),
             const SizedBox(height: 16),
+            Text('Reading mode', style: t.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, label: Text('Pages')),
+                ButtonSegment(value: true, label: Text('Scroll')),
+              ],
+              selected: {s.scroll},
+              onSelectionChanged: (v) =>
+                  n.update((s) => s.copyWith(scroll: v.single)),
+            ),
+            const SizedBox(height: 16),
             slider(
               'Font size',
               s.fontSize,

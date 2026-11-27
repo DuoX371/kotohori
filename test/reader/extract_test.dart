@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
@@ -52,6 +53,23 @@ void main() {
     expect(chapter.indexOf('kh-hide'), lessThan(chapter.indexOf('</HEAD>')));
     expect(chapter, contains('<body><p>本</p></body>')); // text untouched
     expect(File(p.join(dir, 'Images', 'i.png')).readAsStringSync(), 'png');
+  });
+
+  test('a chapter without a doctype gets one, after any XML declaration', () {
+    String fix(String s) => utf8.decode(hidePage(utf8.encode(s)));
+    expect(
+      fix('<html><head></head><body>本</body></html>'),
+      startsWith('<!DOCTYPE html><html>'),
+    );
+    expect(
+      fix('<?xml version="1.0" encoding="utf-8"?>\n<html><head></head></html>'),
+      startsWith(
+        '<?xml version="1.0" encoding="utf-8"?><!DOCTYPE html>\n<html>',
+      ),
+    );
+    const standard = '<!DOCTYPE html>\n<html><head></head></html>';
+    expect(fix(standard).indexOf('<!DOCTYPE'), 0);
+    expect('<!DOCTYPE'.allMatches(fix(standard)), hasLength(1));
   });
 
   test('a folder unpacked by an older version is unpacked again', () async {

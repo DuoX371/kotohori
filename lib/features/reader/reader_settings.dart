@@ -29,6 +29,7 @@ class ReaderSettings {
     this.lineSpacing = 1.8,
     this.margin = 24,
     this.vertical = true,
+    this.scroll = false,
     this.headingSize = 1.3,
     this.font,
   });
@@ -39,6 +40,9 @@ class ReaderSettings {
   final double lineSpacing;
   final double margin;
   final bool vertical;
+
+  /// Scroll through a chapter instead of turning pages.
+  final bool scroll;
 
   /// Headings' size relative to the text (books often make them 2×).
   final double headingSize;
@@ -57,6 +61,7 @@ class ReaderSettings {
     double? lineSpacing,
     double? margin,
     bool? vertical,
+    bool? scroll,
     double? headingSize,
     String? Function()? font,
   }) => ReaderSettings(
@@ -65,6 +70,7 @@ class ReaderSettings {
     lineSpacing: lineSpacing ?? this.lineSpacing,
     margin: margin ?? this.margin,
     vertical: vertical ?? this.vertical,
+    scroll: scroll ?? this.scroll,
     headingSize: headingSize ?? this.headingSize,
     font: font == null ? this.font : font(),
   );
@@ -75,6 +81,7 @@ class ReaderSettings {
     'lineSpacing': lineSpacing,
     'margin': margin,
     'vertical': vertical,
+    'scroll': scroll,
     'headingSize': headingSize,
     'font': font,
   };
@@ -92,6 +99,7 @@ class ReaderSettings {
       lineSpacing: read('lineSpacing', d.lineSpacing, lineSpacings),
       margin: read('margin', d.margin, margins),
       vertical: j['vertical'] is bool ? j['vertical']! as bool : d.vertical,
+      scroll: j['scroll'] is bool ? j['scroll']! as bool : d.scroll,
       headingSize: read('headingSize', d.headingSize, headingSizes),
       font: j['font'] is String ? j['font']! as String : null,
     );
@@ -126,7 +134,10 @@ String readerCss(ReaderSettings s, ReaderTheme theme, {String? fontUrl}) {
   final font = family == null
       ? ''
       : '${face}html, body, body * { font-family: $family !important; }\n';
-  return '''$font
+  final ends = s.vertical
+      ? 'p { margin-top: 0 !important; margin-bottom: 0 !important; }\n'
+      : '';
+  return '''$font$ends
 html {
   writing-mode: $mode !important;
   background: ${_hex(theme.background)} !important;
@@ -143,6 +154,9 @@ body {
 }
 body * { writing-mode: $mode !important; color: inherit !important; }
 p, div { line-height: inherit !important; }
+/* Scroll mode: a chapter's <body> classes sit on its section; the book's
+   size and spacing for them must not beat the settings above. */
+section.kh-ch { font-size: inherit !important; line-height: inherit !important; }
 h1, h2, h3, h4, h5, h6 { font-size: ${s.headingSize.toStringAsFixed(2)}em !important; }
 img, svg, image { max-width: 100% !important; max-height: 100% !important; }
 ''';

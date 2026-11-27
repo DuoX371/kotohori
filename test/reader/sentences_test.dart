@@ -39,4 +39,14 @@ void main() {
     expect(r.lines, ['本。']);
     expect(r.target, 0);
   });
+
+  test('a paragraph Explain gets every sentence of it, with neighbours', () {
+    final r = explainParagraph(
+      before: ['一。二。三。'],
+      paragraph: '四。五。',
+      after: ['六。七。八。'],
+    );
+    expect(r.lines, ['二。', '三。', '四。', '五。', '六。', '七。']);
+    expect((r.from, r.count), (2, 2));
+  });
 }

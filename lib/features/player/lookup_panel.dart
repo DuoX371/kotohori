@@ -25,7 +25,11 @@ class LookupPanel extends ConsumerStatefulWidget {
     required this.onQuickAdd,
     this.ankiChanged,
     this.dark = true,
+    this.actions = const [],
   });
+
+  /// Extra buttons in the top row, before the close button.
+  final List<Widget> actions;
 
   /// Dark results page (the player is always dark; the reader follows the
   /// app's theme).
@@ -248,6 +252,7 @@ for (const [i, decks] of Object.entries(${jsonEncode(marks)})) {
                       )
                     : const SizedBox.shrink(),
               ),
+              ...widget.actions,
               const Spacer(),
               IconButton(
                 tooltip: 'Close',

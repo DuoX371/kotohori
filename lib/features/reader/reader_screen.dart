@@ -147,7 +147,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _onEvent(ReaderEvent e) {
     switch (e) {
       case ReaderTap():
-        setState(() => _panelLeft = e.x > 0.5);
+        setState(() {
+          _panelLeft = e.x > 0.5;
+          _bar = false;
+        });
         c.onTap(e);
       case ReaderBlank():
         if (c.lookup.isOpen) {
@@ -304,7 +307,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     return added;
   }
 
-  Future<void> _explain() async {
+  Future<void> _explain({bool paragraph = false}) async {
     final messenger = ScaffoldMessenger.of(context);
     final problem = explainSetupProblem(
       apiKey: await ref.read(explainApiKeyProvider.future),
@@ -334,6 +337,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final r = c.explainRequest(
       title: widget.book.title,
       model: ref.read(explainModelProvider),
+      paragraph: paragraph,
     );
     if (r == null) {
       messenger
@@ -427,6 +431,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               onQuickAdd: _quickAdd,
               ankiChanged: _ankiChanged,
               dark: dark,
+              actions: [
+                if (ref.watch(explainEnabledProvider)) ...[
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                    label: const Text('Sentence'),
+                    onPressed: _explain,
+                  ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                    label: const Text('Paragraph'),
+                    onPressed: () => _explain(paragraph: true),
+                  ),
+                ],
+              ],
             )
           : const SizedBox.shrink(),
     );
@@ -543,7 +562,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                         duration: Duration(milliseconds: still ? 0 : 200),
                         curve: Curves.easeOutCubic,
                         child: Material(
-                          color: theme.background.withValues(alpha: 0.95),
+                          color: Color.alphaBlend(
+                            theme.text.withValues(alpha: 0.06),
+                            theme.background,
+                          ),
+                          shape: Border(
+                            bottom: BorderSide(
+                              color: theme.text.withValues(alpha: 0.15),
+                            ),
+                          ),
                           elevation: 2,
                           child: IconTheme(
                             data: IconThemeData(color: theme.text),

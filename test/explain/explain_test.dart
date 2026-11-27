@@ -143,6 +143,25 @@ void main() {
     expect(p.user, 'Show: T\n\nSubtitle lines:\n> 行');
   });
 
+  test('a paragraph gets the lighter prompt, every sentence marked', () {
+    const a = Cue(0, Duration.zero, Duration.zero, '前。');
+    const b = Cue(1, Duration.zero, Duration.zero, '一。');
+    const c = Cue(2, Duration.zero, Duration.zero, '二。');
+    final p = explainPrompt(
+      const ExplainRequest(
+        title: '本',
+        lines: [a, b, c],
+        targets: [b, c],
+        model: 'm',
+        source: ExplainSource.book,
+        paragraph: true,
+      ),
+    );
+    expect(p.system, contains('## Hard parts'));
+    expect(p.system, isNot(contains('## Breakdown')));
+    expect(p.user, 'Book: 本\n\nSentences:\n  前。\n> 一。\n> 二。');
+  });
+
   test('book prompt talks about a novel and its sentences', () {
     const a = Cue(0, Duration.zero, Duration.zero, '前の文。');
     const b = Cue(1, Duration.zero, Duration.zero, '対象の文。');

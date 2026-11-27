@@ -29,6 +29,7 @@ sealed class ReaderEvent {
           m['offset']! as int,
           m['page']! as int,
           m['pages']! as int,
+          m['ch'] as int?,
         ),
         'edge' => switch (m['dir']) {
           'next' => const ReaderEdge(true),
@@ -77,12 +78,15 @@ class ReaderBlank extends ReaderEvent {
 }
 
 /// The page shown now: [offset] is the chapter character position of its
-/// first character; [page] is 0-based out of [pages].
+/// first character; [page] is 0-based out of the chapter's [pages].
+/// [chapter]: which chapter that is, when the page holds the whole book
+/// (scroll mode); null when it holds one chapter.
 class ReaderPos extends ReaderEvent {
-  const ReaderPos(this.offset, this.page, this.pages);
+  const ReaderPos(this.offset, this.page, this.pages, [this.chapter]);
   final int offset;
   final int page;
   final int pages;
+  final int? chapter;
 }
 
 /// Paged past the end ([forward]) or the start of the chapter.

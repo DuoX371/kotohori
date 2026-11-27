@@ -24,6 +24,12 @@ List<(int, int)> _spans(String text) {
 
 bool _blank(String s) => s.trim().isEmpty;
 
+/// The non-blank sentences of [p], trimmed.
+List<String> _split(String p) => [
+  for (final (s, e) in _spans(p))
+    if (!_blank(p.substring(s, e))) p.substring(s, e).trim(),
+];
+
 /// The sentence of [paragraph] that holds [offset], without leading spaces;
 /// [start] is where it begins in [paragraph].
 ({String text, int start}) sentenceAt(String paragraph, int offset) {
@@ -49,19 +55,36 @@ bool _blank(String s) => s.trim().isEmpty;
   required List<String> after,
   int around = 2,
 }) {
-  List<String> split(String p) => [
-    for (final (s, e) in _spans(p))
-      if (!_blank(p.substring(s, e))) p.substring(s, e).trim(),
-  ];
-  final prior = [for (final p in before) ...split(p)];
+  final prior = [for (final p in before) ..._split(p)];
   final tapped = sentenceAt(paragraph, offset);
-  final own = split(paragraph);
+  final own = _split(paragraph);
   final at = own.indexOf(tapped.text).clamp(0, own.length);
   final lead = [...prior, ...own.take(at)];
-  final trail = [...own.skip(at + 1), for (final p in after) ...split(p)];
+  final trail = [...own.skip(at + 1), for (final p in after) ..._split(p)];
   final head = lead.length > around ? lead.sublist(lead.length - around) : lead;
   return (
     lines: [...head, tapped.text, ...trail.take(around)],
     target: head.length,
+  );
+}
+
+/// The whole [paragraph]'s sentences and up to [around] sentences each side;
+/// the paragraph is [count] lines from [from] in [lines].
+({List<String> lines, int from, int count}) explainParagraph({
+  required List<String> before,
+  required String paragraph,
+  required List<String> after,
+  int around = 2,
+}) {
+  final prior = [for (final p in before) ..._split(p)];
+  final own = _split(paragraph);
+  final trail = [for (final p in after) ..._split(p)];
+  final head = prior.length > around
+      ? prior.sublist(prior.length - around)
+      : prior;
+  return (
+    lines: [...head, ...own, ...trail.take(around)],
+    from: head.length,
+    count: own.length,
   );
 }

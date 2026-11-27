@@ -51,6 +51,11 @@ void main() {
     );
     expect((pos! as ReaderPos).offset, 120);
     expect(((pos as ReaderPos).page, pos.pages), (2, 9));
+    expect(pos.chapter, isNull);
+    final inBook = ReaderEvent.parse(
+      '{"t":"pos","ch":4,"offset":7,"page":0,"pages":3}',
+    );
+    expect((inBook! as ReaderPos).chapter, 4);
     expect(
       (ReaderEvent.parse('{"t":"edge","dir":"next"}')! as ReaderEdge).forward,
       isTrue,

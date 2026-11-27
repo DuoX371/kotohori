@@ -47,4 +47,26 @@ void main() {
     expect(r.targets.map((l) => l.text), ['猫だ。']);
     expect(r.targetText, '猫だ。');
   });
+
+  test('Explain can ask about the whole tapped paragraph', () async {
+    await c.onTap(tap);
+    final r = c.explainRequest(title: '本', model: 'm', paragraph: true)!;
+    expect(r.paragraph, isTrue);
+    expect(r.targets.map((l) => l.text), ['一。', '猫だ。', '三。']);
+    expect(r.lines.map((l) => l.text), ['前の段落。', '一。', '猫だ。', '三。', '次。']);
+  });
+
+  test('a book answer is reused only for the same text', () async {
+    await c.onTap(tap);
+    final cat = c.explainRequest(title: '本', model: 'm')!;
+    await c.onTap(const ReaderTap(5, '犬だ。', 0, ['一。', '二。'], []));
+    final dog = c.explainRequest(title: '本', model: 'm')!;
+    // Both sit at index 2 of their own request: the text tells them apart.
+    expect(cat.targets.single.index, dog.targets.single.index);
+    expect(cat.cacheKey, isNot(dog.cacheKey));
+    await c.onTap(const ReaderTap(4, '一。猫だ。三。', 4, [], []));
+    expect(c.explainRequest(title: '本', model: 'm')!.cacheKey, cat.cacheKey);
+    final whole = c.explainRequest(title: '本', model: 'm', paragraph: true)!;
+    expect(whole.cacheKey, isNot(cat.cacheKey));
+  });
 }
